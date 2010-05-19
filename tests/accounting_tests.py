@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import sys, os.path
 
 from couchdbkit import Server
@@ -64,12 +65,12 @@ def test_account_tree_and_billing(db):
     plan.create_transaction(nal, konditer, 300.0).save()
     plan.create_transaction(nal, zavhoz, 200.0).save()
     
-    assert zacs.balance == -1600
-    assert bich.balance == -1000
-    assert petrov.balance == -600
+    assert zacs.get_balance().balance == -1600
+    assert bich.get_balance().balance == -1000
+    assert petrov.get_balance().balance == -600
     
-    assert kassa.balance == 1100
-    assert kassa.debet == 1600
-    assert kassa.kredit == 500
+    assert kassa.get_balance().balance == 1100
+    assert kassa.get_balance().debet == 1600
+    assert kassa.get_balance().kredit == 500
     
-    assert zp.balance == 500
+    assert zp.get_balance().balance == 500

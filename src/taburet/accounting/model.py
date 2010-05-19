@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
+
 from couchdbkit import Document, ListProperty, FloatProperty, DateTimeProperty, StringProperty
 import datetime
-
 
 class Transaction(Document):
     from_acc = ListProperty(verbose_name="From accounts", required=True)
@@ -13,16 +14,36 @@ class Account(Document):
     title = StringProperty()
     parents = ListProperty()
     
-    balance = property(lambda self: Transaction.view('accounting/balance', key=self._id).one()['value'])
-    debet = property(lambda self: Transaction.view('accounting/debet', key=self._id).one()['value'])
-    kredit = property(lambda self: Transaction.view('accounting/kredit', key=self._id).one()['value'])
+    def get_balance(self):
+        '''
+        Возвращает баланс счета
+        
+        @return: Balance
+        '''
+        result = Transaction.view('accounting/balance', key=self._id).one()['value']
+        return Balance(result['debet'], result['kredit'])
 
 
+class Balance(object):
+    def __init__(self, debet, kredit):
+        self.debet = debet
+        self.kredit = kredit
+        self.balance = debet - kredit
+
+    
 class AccountsPlan(object):
     def __init__(self):
         pass
     
     def add_account(self, id, title=None, parent=None):
+        '''
+        Добавляет счет в план
+        
+        @param id: уникальный для базы id
+        @param title: расшифровка
+        @param parent: счет, в который будет помещен создаваемый субсчет
+        @return: Account
+        '''
         account = Account()
         account._id = id
         
@@ -33,7 +54,7 @@ class AccountsPlan(object):
             account.parents = parent.parents + [parent._id]
         
         account.save()
-            
+
         return account
     
     def create_transaction(self, from_account, to_account, amount, date=None):
