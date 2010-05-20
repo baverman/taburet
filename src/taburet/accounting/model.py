@@ -89,6 +89,15 @@ class Account(Document):
             result = Transaction.view('accounting/balance_for_account', **params).one()['value']
         
         return Balance(result['debet'], result['kredit'])
+    
+    def get_subaccounts(self):
+        return Account.view('accounting/accounts', key=self._id, include_docs=True).all()
+    
+    def __repr__(self):
+        return "<Account: %s" % self._id
+    
+    def __eq__(self, ob):
+        return self._id == ob._id
 
 
 class Balance(object):
@@ -134,3 +143,6 @@ class AccountsPlan(object):
             tran.date = date
             
         return tran
+    
+    def get_accounts(self):
+        return Account.view('accounting/accounts', key='ROOT_ACCOUNT', include_docs=True).all()
