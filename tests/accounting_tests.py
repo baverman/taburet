@@ -4,6 +4,8 @@ import sys, os.path
 
 from couchdbkit import Server
 
+from datetime import datetime
+
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
 from taburet.accounting import Transaction, AccountsPlan, sync_design_documents, set_db_for_models
@@ -22,28 +24,7 @@ def pytest_funcarg__db(request):
     
     return db
 
-def tes_transactions(db):
-    t1 = Transaction(from_acc=['acc1'], to_acc=['acc2'], amount=100.05)
-    t2 = Transaction(from_acc=['acc3'], to_acc=['acc2'], amount=450.11)
-    t3 = Transaction(from_acc=['acc2'], to_acc=['acc1'], amount=50.99)
-    
-    t1.save()
-    t2.save()
-    t3.save()
-    
-    result = Transaction.view('accounting/balance', key="acc1")
-    assert result.one()['value'] == -49.06
-
-    result = Transaction.view('accounting/balance', key="acc2")
-    assert result.one()['value'] == 499.17
-
-    result = Transaction.view('accounting/balance', key="acc3")
-    assert result.one()['value'] == -450.11
-    
-    result = Transaction.view('accounting/balance')
-    assert result.one()['value'] == 0
-    
-def test_account_tree_and_billing(db):
+def tes_account_tree_and_billing_case(db):
     plan = AccountsPlan()
     
     zacs = plan.add_account("acc_zac")
@@ -74,3 +55,22 @@ def test_account_tree_and_billing(db):
     assert kassa.get_balance().kredit == 500
     
     assert zp.get_balance().balance == 500
+    
+def test_billing_must_return_values_for_date_period(db):
+    plan = AccountsPlan()
+    
+    acc1 = plan.add_account('acc1')
+    acc2 = plan.add_account('acc2')
+    
+    plan.create_transaction(acc1, acc2, 200.0, datetime(2010, 5, 20)).save()
+    plan.create_transaction(acc1, acc2, 300.0, datetime(2010, 5, 31)).save()
+    plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 6, 01)).save()
+    
+    balance = acc2.get_balance(datetime(2010,5,1), datetime(2010,5,31))
+    assert balance.balance == 500
+    
+    balance = acc1.get_balance(datetime(2010,6,1), datetime(2010,6,30))
+    assert balance.balance == -100
+    
+    balance = acc2.get_balance(datetime(2010,5,1), datetime(2010,6,30))
+    assert balance.balance == 600 
