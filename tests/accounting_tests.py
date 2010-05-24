@@ -118,6 +118,7 @@ def test_account_transaction_list(db):
     
     result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31)).one()
     assert result.amount == 100
+    assert result.date == datetime(2010, 5, 22, 10, 23, 40)
     
     result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
     assert result.amount == 200
