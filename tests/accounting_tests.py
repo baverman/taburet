@@ -46,15 +46,15 @@ def test_account_tree_and_billing_case(db):
     plan.create_transaction(nal, konditer, 300.0).save()
     plan.create_transaction(nal, zavhoz, 200.0).save()
     
-    assert zacs.get_balance().balance == -1600
-    assert bich.get_balance().balance == -1000
-    assert petrov.get_balance().balance == -600
+    assert zacs.balance().balance == -1600
+    assert bich.balance().balance == -1000
+    assert petrov.balance().balance == -600
     
-    assert kassa.get_balance().balance == 1100
-    assert kassa.get_balance().debet == 1600
-    assert kassa.get_balance().kredit == 500
+    assert kassa.balance().balance == 1100
+    assert kassa.balance().debet == 1600
+    assert kassa.balance().kredit == 500
     
-    assert zp.get_balance().balance == 500
+    assert zp.balance().balance == 500
     
 def test_billing_must_return_values_for_date_period(db):
     plan = AccountsPlan()
@@ -66,13 +66,13 @@ def test_billing_must_return_values_for_date_period(db):
     plan.create_transaction(acc1, acc2, 300.0, datetime(2010, 5, 31)).save()
     plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 6, 01)).save()
     
-    balance = acc2.get_balance(datetime(2010,5,1), datetime(2010,5,31))
+    balance = acc2.balance(datetime(2010,5,1), datetime(2010,5,31))
     assert balance.balance == 500
     
-    balance = acc1.get_balance(datetime(2010,6,1), datetime(2010,6,30))
+    balance = acc1.balance(datetime(2010,6,1), datetime(2010,6,30))
     assert balance.balance == -100
     
-    balance = acc2.get_balance(datetime(2010,5,1), datetime(2010,6,30))
+    balance = acc2.balance(datetime(2010,5,1), datetime(2010,6,30))
     assert balance.balance == 600
     
 def test_account_must_be_able_to_return_subaccounts(db):
@@ -86,18 +86,39 @@ def test_account_must_be_able_to_return_subaccounts(db):
     
     ssacc1 = plan.add_account('ssacc1', parent=sacc2)
     
-    accounts = plan.get_accounts()
+    accounts = plan.accounts()
     assert acc1 in accounts
     assert acc2 in accounts
     assert not sacc2 in accounts
     
-    accounts = acc1.get_subaccounts()
+    accounts = acc1.subaccounts()
     assert sacc1 in accounts
     assert sacc2 in accounts
     assert not acc1 in accounts
     
-    accounts = sacc2.get_subaccounts()
+    accounts = sacc2.subaccounts()
     assert accounts == [ssacc1]
     
-    accounts = acc2.get_subaccounts()
+    accounts = acc2.subaccounts()
     assert accounts == []
+    
+def test_account_transaction_list(db):
+    plan = AccountsPlan()
+    
+    acc1 = plan.add_account('acc1')
+    acc2 = plan.add_account('acc2')
+    
+    plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 5, 22, 10, 23, 40)).save()
+    plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 6, 1, 10, 10, 10)).save()
+    
+    result = acc2.transactions().all()
+    
+    assert result[0].amount == 100
+    assert result[1].amount == 200
+    
+    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31)).one()
+    assert result.amount == 100
+    
+    result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
+    assert result.amount == 200
+    
