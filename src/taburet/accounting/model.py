@@ -21,7 +21,7 @@ class Account(Document):
     title = StringProperty()
     parents = ListProperty()
     
-    def _get_balance_key(self, date):
+    def _get_date_key(self, date):
         return [self._id, date.year, date.month, date.day]
     
     def balance(self, date_from=None, date_to=None):
@@ -36,10 +36,10 @@ class Account(Document):
         else:
             params = {}
             if date_from:
-                params['startkey'] = self._get_balance_key(date_from)
+                params['startkey'] = self._get_date_key(date_from)
             
             if date_to:
-                params['endkey'] = self._get_balance_key(date_to)
+                params['endkey'] = self._get_date_key(date_to)
                 
             result = Transaction.view('accounting/balance_for_account', **params).one()['value']
         
@@ -55,10 +55,10 @@ class Account(Document):
             params['endkey'] = [self._id, {}]
         else:
             if date_from:
-                params['startkey'] = self._get_balance_key(date_from)
+                params['startkey'] = self._get_date_key(date_from)
             
             if date_to:
-                params['endkey'] = self._get_balance_key(date_to)
+                params['endkey'] = self._get_date_key(date_to)
                 
         return Transaction.view('accounting/transactions', **params)
     
