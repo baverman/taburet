@@ -1,11 +1,10 @@
 function(doc) {
 	if ( doc.doc_type == 'Transaction' ) {
-		var date = new Date(doc.date)
 		doc.from_acc.forEach(function(e) {
-			emit([e, date.getFullYear(), date.getMonth() + 1, date.getDate()], null)
+			emit([e, doc.date[0], doc.date[1], doc.date[2]], null)
 		})
 		doc.to_acc.forEach(function(e) {
-			emit([e, date.getFullYear(), date.getMonth() + 1, date.getDate()], null)
+			emit([e, doc.date[0], doc.date[1], doc.date[2]], null)
 		})
 	}
 }
