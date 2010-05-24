@@ -107,19 +107,26 @@ def test_account_transaction_list(db):
     
     acc1 = plan.add_account('acc1')
     acc2 = plan.add_account('acc2')
+    acc3 = plan.add_account('acc3')
     
     plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 5, 22, 10, 23, 40)).save()
     plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 6, 1, 10, 10, 10)).save()
+    plan.create_transaction(acc3, acc2, 300.0, datetime(2010, 7, 1, 10, 10, 10)).save()
     
     result = acc2.transactions().all()
-    
     assert result[0].amount == 100
     assert result[1].amount == 200
+    assert result[2].amount == 300
+    
+    result = acc1.transactions().all()
+    assert len(result) == 2
+
+    result = acc3.transactions().all()
+    assert len(result) == 1
     
     result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31)).one()
     assert result.amount == 100
     assert result.date == datetime(2010, 5, 22, 10, 23, 40)
     
     result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
-    assert result.amount == 200
-    
+    assert result.amount == 200  
