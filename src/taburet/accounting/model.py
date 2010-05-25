@@ -2,6 +2,7 @@
 
 from couchdbkit import Document, ListProperty, FloatProperty, StringProperty
 from taburet.couchdbkit import DateTimeProperty 
+from taburet.counter import save_model_with_autoincremented_id
 
 import datetime
 
@@ -18,7 +19,7 @@ class Transaction(Document):
 
 
 class Account(Document):
-    title = StringProperty()
+    name = StringProperty()
     parents = ListProperty()
     
     def _get_date_key(self, date):
@@ -80,7 +81,7 @@ class AccountsPlan(object):
     def __init__(self):
         pass
     
-    def add_account(self, id, title=None, parent=None):
+    def add_account(self, name=None, parent=None):
         '''
         Добавляет счет в план
         
@@ -90,15 +91,14 @@ class AccountsPlan(object):
         @return: Account
         '''
         account = Account()
-        account._id = id
         
-        if title:
-            account.title = title
+        if name:
+            account.name = name
             
         if parent:
             account.parents = parent.parents + [parent._id]
         
-        account.save()
+        save_model_with_autoincremented_id(account, 'acc')
 
         return account
     

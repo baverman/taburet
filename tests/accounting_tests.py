@@ -9,6 +9,7 @@ from datetime import datetime
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
 from taburet.accounting import AccountsPlan, sync_design_documents, set_db_for_models
+from taburet.counter import sync_design_documents as counter_sync
 
 def pytest_funcarg__db(request):
     s = Server()
@@ -21,23 +22,24 @@ def pytest_funcarg__db(request):
     set_db_for_models(db)
     
     sync_design_documents(db, True)
+    counter_sync(db, True)
     
     return db
 
 def test_account_tree_and_billing_case(db):
     plan = AccountsPlan()
     
-    zacs = plan.add_account("acc_zac")
-    bich = plan.add_account("acc_zac_bich", u"Бичиков", zacs)
-    petrov = plan.add_account("acc_zac_petrov", u"Петров", zacs)
+    zacs = plan.add_account()
+    bich = plan.add_account(u"Бичиков", zacs)
+    petrov = plan.add_account(u"Петров", zacs)
     
-    kassa = plan.add_account("acc_kassa")
-    nal = plan.add_account("acc_kassa_nal", parent=kassa)
-    beznal = plan.add_account("acc_kassa_beznal", parent=kassa)
+    kassa = plan.add_account()
+    nal = plan.add_account(parent=kassa)
+    beznal = plan.add_account(parent=kassa)
     
-    zp = plan.add_account("acc_zp")
-    konditer = plan.add_account('acc_zp_konditer', parent=zp)
-    zavhoz = plan.add_account('acc_zp_zavhoz', parent=zp)
+    zp = plan.add_account()
+    konditer = plan.add_account(parent=zp)
+    zavhoz = plan.add_account(parent=zp)
     
     plan.create_transaction(bich, nal, 1000.0).save()
     plan.create_transaction(petrov, nal, 500.0).save()
@@ -59,8 +61,8 @@ def test_account_tree_and_billing_case(db):
 def test_billing_must_return_values_for_date_period(db):
     plan = AccountsPlan()
     
-    acc1 = plan.add_account('acc1')
-    acc2 = plan.add_account('acc2')
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
     
     plan.create_transaction(acc1, acc2, 200.0, datetime(2010, 5, 20)).save()
     plan.create_transaction(acc1, acc2, 300.0, datetime(2010, 5, 31)).save()
@@ -78,13 +80,13 @@ def test_billing_must_return_values_for_date_period(db):
 def test_account_must_be_able_to_return_subaccounts(db):
     plan = AccountsPlan()
     
-    acc1 = plan.add_account('acc1')
-    acc2 = plan.add_account('acc2')
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
     
-    sacc1 = plan.add_account('sacc1', parent=acc1)
-    sacc2 = plan.add_account('sacc2', parent=acc1)
+    sacc1 = plan.add_account(parent=acc1)
+    sacc2 = plan.add_account(parent=acc1)
     
-    ssacc1 = plan.add_account('ssacc1', parent=sacc2)
+    ssacc1 = plan.add_account(parent=sacc2)
     
     accounts = plan.accounts()
     assert acc1 in accounts
@@ -105,9 +107,9 @@ def test_account_must_be_able_to_return_subaccounts(db):
 def test_account_transaction_list(db):
     plan = AccountsPlan()
     
-    acc1 = plan.add_account('acc1')
-    acc2 = plan.add_account('acc2')
-    acc3 = plan.add_account('acc3')
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
+    acc3 = plan.add_account()
     
     plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 5, 22, 10, 23, 40)).save()
     plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 6, 1, 10, 10, 10)).save()
