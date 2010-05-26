@@ -6,7 +6,9 @@ from couchdbkit import Server, Document, StringProperty
 
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
-from taburet.counter import sync_design_documents, max_num_for, \
+
+from taburet.utils import sync_design_documents
+from taburet.counter import max_num_for, \
     save_doc_with_autoincremented_id, save_model_with_autoincremented_id
 
 def pytest_funcarg__db(request):
@@ -16,7 +18,7 @@ def pytest_funcarg__db(request):
         del s['test']
     
     db = s.create_db('test')
-    sync_design_documents(db, True)
+    sync_design_documents(db, 'taburet.counter')
     
     return db
 

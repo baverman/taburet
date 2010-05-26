@@ -8,8 +8,9 @@ from datetime import datetime
 
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
-from taburet.accounting import AccountsPlan, sync_design_documents, set_db_for_models
-from taburet.counter import sync_design_documents as counter_sync
+
+from taburet.utils import sync_design_documents
+from taburet.accounting import AccountsPlan, set_db_for_models
 
 def pytest_funcarg__db(request):
     s = Server()
@@ -21,8 +22,7 @@ def pytest_funcarg__db(request):
 
     set_db_for_models(db)
     
-    sync_design_documents(db, True)
-    counter_sync(db, True)
+    sync_design_documents(db, ('taburet.counter', 'taburet.accounting'))
     
     return db
 

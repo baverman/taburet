@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from couchdbkit import Document, ListProperty, FloatProperty, StringProperty
-from taburet.couchdbkit import DateTimeProperty 
+from taburet.cdbkit import DateTimeProperty 
 from taburet.counter import save_model_with_autoincremented_id
 
 import datetime
