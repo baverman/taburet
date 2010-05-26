@@ -11,7 +11,6 @@ def sync_design_documents(db, packages, verbose=True):
             __import__(package)
             package = sys.modules[package]
             
-        for p in package.__path__:
-            path = os.path.join(p, '_design')
-            loader = FileSystemDocsLoader(path)
+        for path in package.__path__:
+            loader = FileSystemDocsLoader(os.path.join(path, '_design'))
             loader.sync(db, verbose=verbose)
