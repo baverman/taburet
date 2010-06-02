@@ -12,13 +12,15 @@ sys.path.insert(0, SRC_PATH)
 from taburet.utils import sync_design_documents
 from taburet.accounting import AccountsPlan, set_db_for_models
 
+TEST_DB = 'test'
+
 def pytest_funcarg__db(request):
     s = Server()
     
-    if 'test' in s:
-        del s['test']
+    if TEST_DB in s:
+        del s[TEST_DB]
     
-    db = s.create_db('test')
+    db = s.create_db(TEST_DB)
 
     set_db_for_models(db)
     
