@@ -13,6 +13,10 @@ class Event(object):
         @param action: Action
         @return: Event
         '''
+        
+        if callable(action):
+            action = action()
+        
         self.actions.append(action)
         
         return self
@@ -28,7 +32,7 @@ class Action(object):
         self.action = action
     
     def as_jsonable(self):
-        return {'id':self.id, 'action':self.action}
+        return {'id':self.id, 'action':self.action }
     
 
 class Window(object):
@@ -52,7 +56,11 @@ class Window(object):
         @param event: Event
         @return: Event
         '''
-        self.events.append((event))
+        
+        if callable(event):
+            event = event()
+            
+        self.events.append(event)
         return event
 
 
