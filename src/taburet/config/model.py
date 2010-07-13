@@ -5,10 +5,10 @@ from couchdbkit import ResourceNotFound
 NO_VALUE = object()
 
 class Configuration(object):
-    NotFound = ResourceNotFound
     
     def __init__(self, db):
         self.db = db
+        self.NotFound = ResourceNotFound
 
     def get(self, name, default=NO_VALUE):
         try:

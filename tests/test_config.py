@@ -37,6 +37,6 @@ def test_config_must_return_default_value_if_param_not_found(config):
 def test_config_must_raise_exception_if_param_not_found_and_default_value_not_specified(config):
     try:
         config.get('nonexisted')
-        assert False, 'Configuration.NotFound must be raised'
-    except Configuration.NotFound:
+        assert False, 'config.NotFound must be raised'
+    except config.NotFound:
         pass
