@@ -1,5 +1,3 @@
-import os.path
-from couchdbkit.loaders import FileSystemDocsLoader
 from .model import Transaction, Account, AccountsPlan
 
 def set_db_for_models(db):
