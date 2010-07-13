@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import sys, os.path
+import py.test #@UnresolvedImport
 
-from couchdbkit import Server
+from couchdbkit import Server, MultipleResultsFound
 
 from datetime import datetime
 
@@ -105,6 +105,26 @@ def test_account_must_be_able_to_return_subaccounts(db):
     
     accounts = acc2.subaccounts()
     assert accounts == []
+
+def test_account_must_be_able_to_be_found_by_name(db):
+    plan = AccountsPlan()
+    
+    acc1 = plan.add_account(u'Счет1')
+    plan.add_account(u'Счет2')
+    
+    acc = plan.get_by_name(u'Счет1')
+    assert acc == acc1
+    
+    acc = plan.get_by_name(u'Счет3')
+    assert acc == None
+    
+    plan.add_account(u'Счет1')
+    
+    try:
+        plan.get_by_name(u'Счет1')
+        assert False, 'MultipleResultsFound must be raised'
+    except MultipleResultsFound:
+        pass    
     
 def test_account_transaction_list(db):
     plan = AccountsPlan()

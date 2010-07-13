@@ -64,7 +64,21 @@ class Window(object):
         return event
 
 
+class ObjRef(object):
+    def __init__(self, obj):
+        self.obj = obj
+        self.selectors = []
+
+    def __getattr__(self, name):
+        pass
+        
+    def as_jsonable(self):
+        return {'obj_id':self.tree.id, 'member':'selected_node'}
+
+
 class TreeViewControl(object):
+    selected_node = 'selected_node'
+    
     def __init__(self, id, datasource):
         self.datasource = datasource
         self.id = id
@@ -78,9 +92,9 @@ class TreeViewControl(object):
             'root_title': self.root_title,
         }
         
-    def selected_event(self):
+    def select(self):
         return Event(self.id, 'selected')
-    
+
 
 class TreeViewEndpointDataSource(object):
     

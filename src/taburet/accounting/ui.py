@@ -25,8 +25,11 @@ def form_accounts_plan():
     window.add(tree)
     window.add(form)
     
-    window.on(tree.selected_event) \
-        .do(form.update_action)
+    window.on(tree.select) \
+        .do(form.update(tree.selected_node))
+        
+    window.on(form.submit) \
+        .do(tree.selected_node.text(form.name))
     
     return jsonify(window)
 

@@ -64,10 +64,13 @@ class Account(Document):
         return Transaction.view('accounting/transactions', **params)
     
     def __repr__(self):
-        return "<Account: %s" % self._id
+        return "<Account: %s>" % self._id
     
     def __eq__(self, ob):
-        return self._id == ob._id
+        if ob:
+            return self._id == ob._id
+        else:
+            return False
 
 
 class Balance(object):
@@ -115,3 +118,6 @@ class AccountsPlan(object):
     
     def accounts(self):
         return Account.view('accounting/accounts', key='ROOT_ACCOUNT', include_docs=True).all()
+    
+    def get_by_name(self, name):
+        return Account.view('accounting/account_by_name', key=name, include_docs=True).one()
