@@ -83,6 +83,9 @@ class Balance(object):
         self.kredit = kredit
         self.balance = debet - kredit
 
+    def __repr__(self):
+        return "<+: %f  -: %f  =: %f>" % (self.debet, self.kredit, self.balance)
+
     
 class AccountsPlan(object):
     def __init__(self):
