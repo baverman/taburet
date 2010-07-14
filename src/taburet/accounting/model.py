@@ -33,7 +33,7 @@ class Account(Document):
         '''
         
         if date_from is None and date_to is None:
-            result = Transaction.view('accounting/balance', key=self._id).one()['value']
+            result = Transaction.view('accounting/balance', key=self._id).one()
         else:
             params = {}
             if date_from:
@@ -42,9 +42,13 @@ class Account(Document):
             if date_to:
                 params['endkey'] = self._get_date_key(date_to)
                 
-            result = Transaction.view('accounting/balance_for_account', **params).one()['value']
-        
-        return Balance(result['debet'], result['kredit'])
+            result = Transaction.view('accounting/balance_for_account', **params).one()
+            
+        if result:
+            result = result['value']
+            return Balance(result['debet'], result['kredit'])
+        else:
+            return Balance(0, 0)        
     
     def subaccounts(self):
         return Account.view('accounting/accounts', key=self._id, include_docs=True).all()

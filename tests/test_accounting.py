@@ -79,6 +79,17 @@ def test_billing_must_return_values_for_date_period(db):
     balance = acc2.balance(datetime(2010,5,1), datetime(2010,6,30))
     assert balance.balance == 600
     
+def test_billing_must_return_zero_balance_for_period_without_transactions(db):
+    plan = AccountsPlan()
+    
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
+    
+    plan.create_transaction(acc1, acc2, 200.0, datetime(2010, 5, 20)).save()
+    
+    balance = acc2.balance(datetime(2010,5,21), datetime(2010,5,21))
+    assert balance.balance == 0
+    
 def test_account_must_be_able_to_return_subaccounts(db):
     plan = AccountsPlan()
     
