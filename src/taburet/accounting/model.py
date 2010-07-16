@@ -53,17 +53,25 @@ class Account(Document):
     def subaccounts(self):
         return Account.view('accounting/accounts', key=self._id, include_docs=True).all()
     
-    def transactions(self, date_from=None, date_to=None):
+    def transactions(self, date_from=None, date_to=None, all=True, income=False, outcome=False):
         params = {'include_docs':True}
+        
+        type = 3
+        if income:
+            type = 1
+        
+        if outcome:
+            type = 2
+        
         if date_from is None and date_to is None:
-            params['startkey'] = [self._id]
-            params['endkey'] = [self._id, {}]
+            params['startkey'] = [type, self._id]
+            params['endkey'] = [type, self._id, {}]
         else:
             if date_from:
-                params['startkey'] = self._get_date_key(date_from)
+                params['startkey'] = [type] + self._get_date_key(date_from)
             
             if date_to:
-                params['endkey'] = self._get_date_key(date_to)
+                params['endkey'] = [type] + self._get_date_key(date_to)
                 
         return Transaction.view('accounting/transactions', **params)
     
