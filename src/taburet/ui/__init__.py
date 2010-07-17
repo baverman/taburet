@@ -1,140 +1,37 @@
-import flask
+import gtk
 
-class Event(object):
-    def __init__(self, id, event):
-        self.id = id
-        self.event = event
-        self.actions = []
+def process_focus_like_access(treeview):
+    path, current_column = treeview.get_cursor()
+    columns = treeview.get_columns()
+    for i, c in enumerate(columns):
+        if c == current_column:
+            break
         
-    def do(self, action):
-        '''
-        Assignd action to event
-        
-        @param action: Action
-        @return: Event
-        '''
-        
-        if callable(action):
-            action = action()
-        
-        self.actions.append(action)
-        
-        return self
-        
-    def as_jsonable(self):
-        return {'id':self.id, 'event':self.event,
-            'actions':[r.as_jsonable() for r in self.actions]}
-
-
-class Action(object):
-    def __init__(self, id, action):
-        self.id = id
-        self.action = action
+    if i >= len(columns):
+        return
     
-    def as_jsonable(self):
-        return {'id':self.id, 'action':self.action }
-    
-
-class Window(object):
-    def __init__(self):
-        self.widgets = []
-        self.events = []
-        
-    def as_jsonable(self):
-        return {
-            'widgets':[r.as_jsonable() for r in self.widgets],
-            'events':[r.as_jsonable() for r in self.events]
-        }
-
-    def add(self, widget):
-        self.widgets.append(widget)
-        
-    def on(self, event):
-        '''
-        Assigns event to window
-        
-        @param event: Event
-        @return: Event
-        '''
-        
-        if callable(event):
-            event = event()
+    while True:
+        i += 1
+        if i >= len(columns):
+            model = treeview.get_model()
+            next_iter = model.iter_next(model.get_iter(path))
+            if not next_iter:
+                break
             
-        self.events.append(event)
-        return event
-
-
-class ObjRef(object):
-    def __init__(self, obj):
-        self.obj = obj
-        self.selectors = []
-
-    def __getattr__(self, name):
-        pass
+            path = model.get_string_from_iter(next_iter)
+            i = -1
+            continue
         
-    def as_jsonable(self):
-        return {'obj_id':self.tree.id, 'member':'selected_node'}
-
-
-class TreeViewControl(object):
-    selected_node = 'selected_node'
-    
-    def __init__(self, id, datasource):
-        self.datasource = datasource
-        self.id = id
-        self.root_title = 'Root'
-    
-    def as_jsonable(self):
-        return {
-            '_type': 'TreeViewControl',
-            'id': self.id,
-            'datasource': self.datasource.as_jsonable(),
-            'root_title': self.root_title,
-        }
+        next_column = columns[i]
+        if next_column.get_cell_renderers()[0].props.editable:
+            treeview.set_cursor(path, next_column, True)
+            break
         
-    def select(self):
-        return Event(self.id, 'selected')
-
-
-class TreeViewEndpointDataSource(object):
-    
-    def __init__(self, endpoint):
-        self.endpoint = endpoint
         
-    def as_jsonable(self):
-        return {'_type':'TreeViewEndpointDataSource', 'endpoint':self.endpoint}
-    
+class CommonApp(object):
+    def gtk_main_quit(self, widget):
+        gtk.main_quit()
 
-class Form(object):
-    def __init__(self, id, endpoint, fields=[]):
-        self.id = id
-        self.endpoint = endpoint
-        self.fields = fields
-        
-    def as_jsonable(self):
-        return {'_type':'Form', 'id':self.id, 'endpoint':self.endpoint,
-            'fields':[r.as_jsonable() for r in self.fields]}
-        
-    def update_action(self):
-        return Action(self.id, 'update')
-
-
-class TextField(object):
-    def __init__(self, id, label):
-        self.id = id
-        self.label = label
-
-    def as_jsonable(self):
-        return {'_type':'TextField', 'id':self.id, 'label':self.label}
-
-
-def jsonify(*args, **kwargs):
-    if len(args) == 1 and not kwargs:
-        data = args[0]
-        
-        if hasattr(data, 'as_jsonable'):
-            data = data.as_jsonable()
-    else:
-        data = kwargs
-        
-    return flask.Response(flask.json.dumps(data), mimetype='application/json') 
+    def gtk_widget_hide(self, widget, data=None):
+        widget.hide()
+        return True    
