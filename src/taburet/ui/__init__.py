@@ -1,4 +1,4 @@
-import gtk
+import gtk, gobject
 
 def debug(func):
     return func
@@ -24,6 +24,7 @@ def process_focus_like_access(treeview):
             model = treeview.get_model()
             next_iter = model.iter_next(model.get_iter(path))
             if not next_iter:
+                process_row_change(treeview, True)
                 break
             
             path = model.get_string_from_iter(next_iter)
@@ -35,11 +36,61 @@ def process_focus_like_access(treeview):
             treeview.set_cursor(path, next_column, True)
             break
 
-def enable_edit_for_columns(treeview, *indexes):
-    columns = treeview.get_columns()
-    for i in indexes:
-        columns[i].get_cell_renderers()[0].props.editable = True
+def process_edit_done(treeview, new_text):
+    path, column = treeview.get_cursor()
+
+    model = treeview.get_model()
+    
+    if not model.dirty_row_path:
+        model.dirty_row_path = path
+        model.dirty_data.clear()
+    
+    model.dirty_data[column.get_name()] = new_text
+    
+def process_row_change(treeview, force=False):
+    path, _ = treeview.get_cursor()
+    model = treeview.get_model()
+    
+    if model.dirty_row_path and ( force or model.dirty_row_path != path ):
+        row = model.get_row_from_path(model.dirty_row_path)
+        model.on_row_change(model, row, model.dirty_data)
+        model.dirty_row_path = None
+
+def init_editable_treeview(treeview, model, editable, noneditable):
+    treeview.set_model(model)
+    
+    if getattr(treeview, 'edit_init_done', False):
+        model.column_order = treeview.column_order
+        return
+    
+    def treeview_edit_done(renderer, path, new_text):
+        process_edit_done(treeview, new_text)
+        return process_focus_like_access(treeview)
+    
+    def treeview_cursor_changed(treeview):
+        return process_row_change(treeview)
+
+    treeview.column_order = []
+    for idx, c in enumerate(treeview.get_columns()):
+        cname = c.get_name()
+        renderer = c.get_cell_renderers()[0] 
+        if cname in editable:
+            renderer.props.editable = True
+        elif cname in noneditable:
+            renderer.props.editable = False
+        else:
+            raise Exception("Can't find column %s" % cname)
         
+        renderer.connect('edited', treeview_edit_done)
+        c.set_attributes(renderer, text=idx)
+        treeview.column_order.append(cname)
+        
+    model.column_order = treeview.column_order
+
+    treeview.connect('cursor-changed', treeview_cursor_changed)
+    treeview.edit_init_done = True
+
+
 class CommonApp(object):
     def gtk_main_quit(self, widget):
         gtk.main_quit()
@@ -50,15 +101,25 @@ class CommonApp(object):
     
     
 class EditableListTreeModel(gtk.GenericTreeModel):
-    def __init__(self, data, columns):
+    def __init__(self, data, to_string, on_row_change, empty):
         gtk.GenericTreeModel.__init__(self)
         self.data = data
+
+        if empty:
+            self.data.append(empty())
         
-        self.columns = []
-        self.types = []
-        for fmt, type in columns:
-            self.types.append(type)
-            self.columns.append(fmt) 
+        self.to_string = to_string
+            
+        self.dirty_row_path = None
+        self.dirty_data = {}
+        
+        self.on_row_change = on_row_change
+
+    def get_row_from_path(self, path):
+        if not len(self.data):
+            return None
+
+        return self.data[path[0]]
 
     def on_get_flags(self):
         return gtk.TREE_MODEL_LIST_ONLY
@@ -67,7 +128,7 @@ class EditableListTreeModel(gtk.GenericTreeModel):
         return 3
     
     def on_get_column_type(self, index):
-        return self.types[index]
+        return gobject.TYPE_STRING
     
     def on_get_path(self, node):
         return node
@@ -76,11 +137,14 @@ class EditableListTreeModel(gtk.GenericTreeModel):
         return path if self.data else None 
     
     def on_get_value(self, node, column):
-        
         if not len(self.data):
             return None
         
-        return self.columns[column] % self.data[node[0]]
+        field = self.column_order[column]
+        if self.dirty_row_path and self.dirty_row_path == node and field in self.dirty_data: 
+            return self.dirty_data[field]
+        
+        return self.to_string(self.data[node[0]], field)
     
     def on_iter_next(self, node):
         if self.data:
