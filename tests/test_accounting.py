@@ -179,4 +179,23 @@ def test_account_transaction_list(db):
     assert result.amount == 100
     
     result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
-    assert result.amount == 200  
+    assert result.amount == 200
+    
+def test_account_report(db):
+    plan = AccountsPlan()
+    
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
+    acc3 = plan.add_account()
+    
+    plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 5, 22)).save()
+    plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 5, 25)).save()
+    plan.create_transaction(acc3, acc2, 300.0, datetime(2010, 7, 1)).save()
+    
+    result = list(acc1.report(datetime(2010, 5, 1), datetime(2010, 5, 31))) 
+    assert result[0][0] == [2010, 5, 22]
+    assert result[0][1].kredit == 100
+    
+    assert result[1][0] == [2010, 5, 25]
+    assert result[1][1].debet == 200
+    

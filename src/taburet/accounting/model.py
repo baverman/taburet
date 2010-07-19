@@ -50,10 +50,27 @@ class Account(Document):
         else:
             return Balance(0, 0)        
     
+    def report(self, date_from=None, date_to=None, group_by_day=True):
+        params = {'group':True, 'group_level':4}
+        
+        if date_from is None and date_to is None:
+            params['startkey'] = [self._id]
+            params['endkey'] = [self._id, {}]
+        else:
+            if date_from:
+                params['startkey'] = self._get_date_key(date_from)
+            
+            if date_to:
+                params['endkey'] = self._get_date_key(date_to)
+        
+        result = Transaction.view('accounting/exact_balance_for_account', **params).all()
+        
+        return ((r['key'][1:], Balance(**r['value'])) for r in result)
+    
     def subaccounts(self):
         return Account.view('accounting/accounts', key=self._id, include_docs=True).all()
     
-    def transactions(self, date_from=None, date_to=None, all=True, income=False, outcome=False):
+    def transactions(self, date_from=None, date_to=None, income=False, outcome=False):
         params = {'include_docs':True}
         
         type = 3
@@ -136,3 +153,6 @@ class AccountsPlan(object):
     
     def get_by_name(self, name):
         return Account.view('accounting/account_by_name', key=name, include_docs=True).one()
+    
+    def balance_report(self, date_from, date_to):
+        pass
