@@ -16,6 +16,9 @@ def save(book, filename):
     xls_book.save(filename)
 
 def fill_worksheet(sheet, xls_sheet):
+    for m in sheet._merges:
+        xls_sheet.merge(*m)
+    
     for c in sheet:
         if c.value == None:
             label = ''
@@ -32,5 +35,4 @@ def fill_worksheet(sheet, xls_sheet):
             
     for c in sheet._columns.values():
         if c.width:
-            print c.width
             xls_sheet.col(c.index).width = c.width

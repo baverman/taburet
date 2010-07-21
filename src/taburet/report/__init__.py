@@ -19,6 +19,7 @@ class Worksheet(object):
         self._cells = {}
         self._rows = {}
         self._columns = {}
+        self._merges = []
         self.maxrow = -1
         self.maxcolumn = -1
         
@@ -37,6 +38,10 @@ class Worksheet(object):
     
     def range(self, r1, r2, c1, c2):
         return Range(self, r1, r2, c1, c2)
+    
+    def merge(self, r1, r2, c1, c2):
+        self._merges.append((r1, r2, c1, c2))
+        return self[r1:c1]
     
     def __iter__(self):
         for row in self._cells.values():
@@ -64,6 +69,8 @@ class Cell(object):
         self.style.borders.bottom = width
         self.style.borders.left = width
         self.style.borders.right = width
+        
+    pstyle = property(lambda self: StyleManager((self,)))
 
         
 class Range(object):
@@ -175,7 +182,7 @@ class Column(object):
             if width > maxwidth:
                 maxwidth = width
                 
-        self.width = maxwidth * 260
+        self.width = maxwidth * 300
 
 
 class RowCollection(object):
