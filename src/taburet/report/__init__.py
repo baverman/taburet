@@ -2,6 +2,9 @@ from pyExcelerator import XFStyle as Style
 from pyExcelerator import Formatting
 import numbers
 
+def setprop(func):
+    return property(fset=func)
+
 class Workbook(object):
     def __init__(self):
         self.sheets = []
@@ -47,16 +50,18 @@ class Worksheet(object):
         for row in self._cells.values():
             for c in row.values():
                 yield c    
-
-    style = property(lambda self: StyleManager(self))
-
+    
+    @property
+    def style(self):
+        return StyleManager(self)
+        
          
 class Cell(object):
     def __init__(self, sheet, row, column):
         self.row = row
         self.column = column
         self.value = None
-        self.style = Style()
+        self._style = Style()
         
         if row > sheet.maxrow:
             sheet.maxrow = row
@@ -65,12 +70,14 @@ class Cell(object):
             sheet.maxcolumn = column
         
     def set_borders(self, width=2):
-        self.style.borders.top = width
-        self.style.borders.bottom = width
-        self.style.borders.left = width
-        self.style.borders.right = width
-        
-    pstyle = property(lambda self: StyleManager((self,)))
+        self._style.borders.top = width
+        self._style.borders.bottom = width
+        self._style.borders.left = width
+        self._style.borders.right = width
+
+    @property
+    def style(self):
+        return StyleManager((self,))
 
         
 class Range(object):
@@ -88,18 +95,20 @@ class Range(object):
 
     def set_borders(self, inwidth=1, outwidth=2):
         for c in self:
-            c.style.borders.top = outwidth if c.row == self.r1 else inwidth
-            c.style.borders.bottom = outwidth if c.row == self.r2 else inwidth
-            c.style.borders.left = outwidth if c.column == self.c1 else inwidth
-            c.style.borders.right = outwidth if c.column == self.c2 else inwidth
-    
-    style = property(lambda self: StyleManager(self))
+            c._style.borders.top = outwidth if c.row == self.r1 else inwidth
+            c._style.borders.bottom = outwidth if c.row == self.r2 else inwidth
+            c._style.borders.left = outwidth if c.column == self.c1 else inwidth
+            c._style.borders.right = outwidth if c.column == self.c2 else inwidth
+
+    @property
+    def style(self):
+        return StyleManager(self)
 
 
 class Align(object):
-    def __init__(self):
-        self.horz = HorzAlign()
-        self.vert = VertAlign()
+    def __init__(self, manager):
+        self.horz = HorzAlign(manager)
+        self.vert = VertAlign(manager)
         
     def apply_style(self, cell):
         self.horz.apply_style(cell)
@@ -107,45 +116,60 @@ class Align(object):
 
 
 class HorzAlign(object):
-    def __init__(self):
+    def __init__(self, manager):
         self.align = None
+        self.manager = manager
         
     def apply_style(self, cell):
         if self.align != None:
-            cell.style.alignment.horz = self.align
+            cell._style.alignment.horz = self.align
             
     def center(self):
-        self.align = Formatting.Alignment.HORZ_CENTER 
+        self.align = Formatting.Alignment.HORZ_CENTER
+        self.manager.check_lazy_and_apply(self) 
 
 
 class VertAlign(object):
-    def __init__(self):
-        self.align = None 
+    def __init__(self, manager):
+        self.align = None
+        self.manager = manager
         
     def apply_style(self, cell):
         if self.align != None:
-            cell.style.alignment.vert = self.align
+            cell._style.alignment.vert = self.align
             
     def center(self):
         self.align = Formatting.Alignment.VERT_CENTER
+        self.manager.check_lazy_and_apply(self)
 
 
 class StyleManager(object):
     def __init__(self, cells):
         self.cells = cells
-        
-        self.format = None
-        self.align = Align()
+        self.lazy = False
+        self._format = None
+        self.align = Align(self)
         
     def __enter__(self):
+        self.lazy = True
         return self
     
+    def check_lazy_and_apply(self, obj):
+        if self.lazy: return
+        for cell in self.cells:
+            obj.apply_style(cell)        
+    
     def apply_style(self, cell):
-        if self.format:
-            cell.style.num_format_str = self.format
+        if self._format:
+            cell._style.num_format_str = self._format
          
         self.align.apply_style(cell)
-            
+    
+    @setprop
+    def format(self, format):
+        self._format = format
+        self.check_lazy_and_apply(self)
+    
     def __exit__(self, exc_type, exc_value, traceback):
         for cell in self.cells:
             self.apply_style(cell)
@@ -189,8 +213,7 @@ class RowCollection(object):
     def __init__(self, sheet):
         self.sheet = sheet
         
-    def __set_height(self, height):
+    @setprop
+    def height(self, height):
         for r in range(self.sheet.maxrow + 1):
             self.sheet[r:].height = height
-    
-    height = property(fset=__set_height)

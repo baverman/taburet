@@ -25,7 +25,7 @@ def fill_worksheet(sheet, xls_sheet):
         else:
             label = myunicode(c.value)
         
-        xls_sheet.write(c.row, c.column, label, c.style)
+        xls_sheet.write(c.row, c.column, label, c._style)
         
     for r in sheet._rows.values():
         if r.height:
