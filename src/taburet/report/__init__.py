@@ -5,6 +5,13 @@ import numbers
 def setprop(func):
     return property(fset=func)
 
+def group_sum(map, key, value):
+    if key in map:
+        map[key] += value
+    else:
+        map[key] = value    
+
+
 class Workbook(object):
     def __init__(self):
         self.sheets = []
