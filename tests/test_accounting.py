@@ -1,36 +1,30 @@
 # -*- coding: utf-8 -*-
 import sys, os.path
-import py.test #@UnresolvedImport
 
-from couchdbkit import Server, MultipleResultsFound
+from couchdbkit import MultipleResultsFound
 
 from datetime import datetime
 
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
 
-from taburet.utils import sync_design_documents
-from taburet.accounting import AccountsPlan, set_db_for_models
+from taburet import DbSetter
+from taburet.test import TestServer
+from taburet.accounts import AccountsPlan
 
-TEST_DB = 'test'
+def pytest_funcarg__plan(request):
+    s = TestServer()
+    db1 = s.get_db('test_accounts')
+    db2 = s.get_db('test_transactions')
 
-def pytest_funcarg__db(request):
-    s = Server()
+    dbsetter = DbSetter()
+    dbsetter.set_db(db1, 'taburet.accounts')
+    dbsetter.set_db(db2, 'taburet.transactions')
+    dbsetter.sync_design_documents()
     
-    if TEST_DB in s:
-        del s[TEST_DB]
-    
-    db = s.create_db(TEST_DB)
+    return AccountsPlan()
 
-    set_db_for_models(db)
-    
-    sync_design_documents(db, ('taburet.counter', 'taburet.accounting'))
-    
-    return db
-
-def test_account_tree_and_billing_case(db):
-    plan = AccountsPlan()
-    
+def test_account_tree_and_billing_case(plan):
     zacs = plan.add_account()
     bich = plan.add_account(u"Бичиков", zacs)
     petrov = plan.add_account(u"Петров", zacs)
@@ -60,9 +54,7 @@ def test_account_tree_and_billing_case(db):
     
     assert zp.balance().balance == 500
     
-def test_billing_must_return_values_for_date_period(db):
-    plan = AccountsPlan()
-    
+def test_billing_must_return_values_for_date_period(plan):
     acc1 = plan.add_account()
     acc2 = plan.add_account()
     
@@ -79,9 +71,7 @@ def test_billing_must_return_values_for_date_period(db):
     balance = acc2.balance(datetime(2010,5,1), datetime(2010,6,30))
     assert balance.balance == 600
     
-def test_billing_must_return_zero_balance_for_period_without_transactions(db):
-    plan = AccountsPlan()
-    
+def test_billing_must_return_zero_balance_for_period_without_transactions(plan):
     acc1 = plan.add_account()
     acc2 = plan.add_account()
     
@@ -90,9 +80,7 @@ def test_billing_must_return_zero_balance_for_period_without_transactions(db):
     balance = acc2.balance(datetime(2010,5,21), datetime(2010,5,21))
     assert balance.balance == 0
     
-def test_account_must_be_able_to_return_subaccounts(db):
-    plan = AccountsPlan()
-    
+def test_account_must_be_able_to_return_subaccounts(plan):
     acc1 = plan.add_account()
     acc2 = plan.add_account()
     
@@ -117,9 +105,7 @@ def test_account_must_be_able_to_return_subaccounts(db):
     accounts = acc2.subaccounts()
     assert accounts == []
 
-def test_account_must_be_able_to_be_found_by_name(db):
-    plan = AccountsPlan()
-    
+def test_account_must_be_able_to_be_found_by_name(plan):
     acc1 = plan.add_account(u'Счет1')
     plan.add_account(u'Счет2')
     
@@ -137,9 +123,7 @@ def test_account_must_be_able_to_be_found_by_name(db):
     except MultipleResultsFound:
         pass    
     
-def test_account_transaction_list(db):
-    plan = AccountsPlan()
-    
+def test_account_transaction_list(plan):
     acc1 = plan.add_account()
     acc2 = plan.add_account()
     acc3 = plan.add_account()
@@ -181,9 +165,7 @@ def test_account_transaction_list(db):
     result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
     assert result.amount == 200
     
-def test_account_report(db):
-    plan = AccountsPlan()
-    
+def test_account_report(plan):
     acc1 = plan.add_account()
     acc2 = plan.add_account()
     acc3 = plan.add_account()
@@ -197,5 +179,4 @@ def test_account_report(db):
     assert result[0][1].kredit == 100
     
     assert result[1][0] == [2010, 5, 25]
-    assert result[1][1].debet == 200
-    
+    assert result[1][1].debet == 200  

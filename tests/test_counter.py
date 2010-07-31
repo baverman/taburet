@@ -2,23 +2,23 @@
 
 import sys, os.path
 
-from couchdbkit import Server, Document, StringProperty
+from couchdbkit import Document, StringProperty
 
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
 
-from taburet.utils import sync_design_documents
+from taburet.test import TestServer
+from taburet import DbSetter
 from taburet.counter import max_num_for, \
     save_doc_with_autoincremented_id, save_model_with_autoincremented_id
 
+import taburet.counter
+
 def pytest_funcarg__db(request):
-    s = Server()
+    s = TestServer()
     
-    if 'test' in s:
-        del s['test']
-    
-    db = s.create_db('test')
-    sync_design_documents(db, 'taburet.counter')
+    db = s.get_db('test')
+    DbSetter().sync_package(db, taburet.counter)
     
     return db
 
