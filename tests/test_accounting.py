@@ -8,7 +8,7 @@ from datetime import datetime
 SRC_PATH = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', 'src'))
 sys.path.insert(0, SRC_PATH)
 
-from taburet import DbSetter
+from taburet import PackageManager
 from taburet.test import TestServer
 from taburet.accounts import AccountsPlan
 
@@ -17,7 +17,7 @@ def pytest_funcarg__plan(request):
     db1 = s.get_db('test_accounts')
     db2 = s.get_db('test_transactions')
 
-    dbsetter = DbSetter()
+    dbsetter = PackageManager()
     dbsetter.set_db(db1, 'taburet.accounts')
     dbsetter.set_db(db2, 'taburet.transactions')
     dbsetter.sync_design_documents()
