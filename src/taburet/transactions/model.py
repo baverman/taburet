@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from couchdbkit import Document, ListProperty, FloatProperty, StringProperty
+from couchdbkit import Document, ListProperty, FloatProperty, ResourceNotFound
 from taburet.cdbkit import DateTimeProperty 
-from taburet.counter import save_model_with_autoincremented_id
 
 import datetime
 
 
 class Transaction(Document):
+    NotFound = ResourceNotFound
+    
     from_acc = ListProperty(verbose_name="From accounts", required=True)
     to_acc = ListProperty(verbose_name="To accounts", required=True)
     amount = FloatProperty(default=0.0)
@@ -26,5 +27,3 @@ class Balance(object):
 
     def __repr__(self):
         return "<+: %f  -: %f  =: %f>" % (self.debet, self.kredit, self.balance)
-
-
