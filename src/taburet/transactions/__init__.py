@@ -70,3 +70,18 @@ def transactions(id, date_from=None, date_to=None, income=False, outcome=False):
             params['endkey'] = [type] + get_date_key(id, date_to)
             
     return Transaction.view('transactions/transactions', **params)
+
+def all_transactions(id, date_from=None, date_to=None):
+    params = {'include_docs':True, 'reduce':False, 'descending':True}
+    
+    if date_from is None and date_to is None:
+        params['startkey'] = [id, {}]
+        params['endkey'] = [id]
+    else:
+        if date_from:
+            params['startkey'] = get_date_key(id, date_from)
+        
+        if date_to:
+            params['endkey'] = get_date_key(id, date_to)
+            
+    return Transaction.view('transactions/balance_for_account', **params)
