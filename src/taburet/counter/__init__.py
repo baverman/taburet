@@ -29,14 +29,14 @@ def save_doc_with_autoincremented_id(doc, db, prefix):
 def save_model_with_autoincremented_id(doc, prefix):
     db = doc.get_db()
     if '_rev' in doc:
-        doc.save()
+        Document.save(doc)
     else:
         if '_id' not in doc:
             doc._id = get_new_id(db, prefix) 
         
         while True:
             try:
-                doc.save()
+                Document.save(doc)
                 break
             except ResourceConflict:
                 doc._id = get_new_id(db, prefix)
