@@ -24,6 +24,7 @@ class PackageManager(object):
         self.packages_to_set = set()
         self.synced_dbs = {}
         self.processed_uses = {}
+        self.same_dbs = {}
     
     def set_db(self, db, *packages):
         for package in iter_packages(packages):
@@ -53,9 +54,25 @@ class PackageManager(object):
             if getattr(package, 'set_db', False):
                 self.packages_to_set.add(pname)
                 
-            self.use(*getattr(package, 'module_deps', ()))
+            if getattr(package, 'same_db', False):
+                self.same_dbs[pname] = package.same_db
+                self.packages_to_set.add(package.same_db)
                 
+            self.use(*getattr(package, 'module_deps', ()))
+
+    def init_same_dbs(self):
+        def set_db(pname):
+            sname = self.same_dbs[pname] 
+            if sname in self.package_dbs:
+                self.package_dbs[pname] = self.package_dbs[sname]
+            elif sname in self.same_dbs:
+                set_db(sname)
+
+        for pname in self.same_dbs:
+            set_db(pname)
+    
     def validate(self):
+        self.init_same_dbs()
         packages_without_db = [r for r in self.packages_to_set if r not in self.package_dbs]
         if packages_without_db:
             raise Exception('You must set db for following packages: %s' % ', '.join(packages_without_db))
