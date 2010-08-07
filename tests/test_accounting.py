@@ -187,19 +187,20 @@ def test_month_report(plan):
     acc2 = plan.add_account()
     acc3 = plan.add_account()
     
+    plan.create_transaction(acc1, acc2, 50.0, datetime(2009, 8, 22)).save()
     plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 5, 22)).save()
     plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 5, 25)).save()
     plan.create_transaction(acc3, acc2, 300.0, datetime(2010, 7, 1)).save()
     
     result = month_report((acc1.id, acc2.id), datetime(2010, 5, 22))
     assert len(result) == 2
-    assert result[acc1.id] == {'before':0, 'debet':200, 'kredit':100, 'after':100}
-    assert result[acc2.id] == {'before':0, 'debet':100, 'kredit':200, 'after':-100}
+    assert result[acc1.id] == {'before':-50, 'debet':200, 'kredit':100, 'after':50}
+    assert result[acc2.id] == {'before':50, 'debet':100, 'kredit':200, 'after':-50}
     
     result = month_report((acc1.id, acc2.id), datetime(2010, 7, 1))
     assert len(result) == 2
-    assert result[acc1.id] == {'before':100, 'debet':0, 'kredit':0, 'after':100}
-    assert result[acc2.id] == {'before':-100, 'debet':300, 'kredit':0, 'after':200}
+    assert result[acc1.id] == {'before':50, 'debet':0, 'kredit':0, 'after':50}
+    assert result[acc2.id] == {'before':-50, 'debet':300, 'kredit':0, 'after':250}
     
     result = month_report((acc3.id,), datetime(2010, 7, 1))
     assert len(result) == 1

@@ -3,7 +3,7 @@ function(doc) {
 		var year = doc.date[0]
 		var month = doc.date[1]
 		
-		if ( year <= %(year)d && month < %(month)d ) {
+		if ( year < %(year)d || ( year == %(year)d && month < %(month)d ) ) {
 			for each(acc in doc.from_acc) {
 				emit(acc, {before: -doc.amount})
 			}
