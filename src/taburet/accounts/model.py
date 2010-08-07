@@ -28,6 +28,10 @@ class Account(Document):
             return self._id == ob._id
         else:
             return False
+        
+    @property
+    def id(self):
+        return self._id
 
 
 class AccountsPlan(object):
