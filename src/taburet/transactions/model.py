@@ -47,5 +47,10 @@ def month_report(account_id_list, dt=None):
             pass
          
     result = Transaction.view(view_name+'/get', keys=account_id_list, group=True)
+    result = dict((r['key'], r['value']) for r in result) 
     
-    return dict((r['key'], r['value']) for r in result)
+    for id in account_id_list:
+        if id not in result:
+            result[id] = {'kredit': 0, 'debet': 0, 'after': 0, 'before': 0}
+    
+    return result 
