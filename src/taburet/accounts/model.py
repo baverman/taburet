@@ -70,8 +70,11 @@ class AccountsPlan(object):
             
         return tran
     
-    def accounts(self):
+    def subaccounts(self):
         return Account.view('accounts/accounts', key='ROOT_ACCOUNT', include_docs=True).all()
+    
+    def accounts(self):
+        return Account.view('doctype/get', key='Account', include_docs=True).all()
     
     def get_by_name(self, name):
         return Account.view('accounts/account_by_name', key=name, include_docs=True).one()

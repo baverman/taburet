@@ -90,7 +90,7 @@ def test_account_must_be_able_to_return_subaccounts(plan):
     
     ssacc1 = plan.add_account(parent=sacc2)
     
-    accounts = plan.accounts()
+    accounts = plan.subaccounts()
     assert acc1 in accounts
     assert acc2 in accounts
     assert not sacc2 in accounts
@@ -105,6 +105,13 @@ def test_account_must_be_able_to_return_subaccounts(plan):
     
     accounts = acc2.subaccounts()
     assert accounts == []
+    
+    accounts = plan.accounts()
+    assert acc1 in accounts
+    assert acc2 in accounts
+    assert sacc1 in accounts
+    assert sacc2 in accounts
+    assert ssacc1 in accounts
 
 def test_account_must_be_able_to_be_found_by_name(plan):
     acc1 = plan.add_account(u'Счет1')
