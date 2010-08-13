@@ -18,6 +18,8 @@ def balance(id, date_from=None, date_to=None):
         result = Transaction.view('transactions/balance', key=id).one()
     else:
         params = {}
+        params['startkey'] = [id]
+        params['endkey'] = [id, {}]
         if date_from:
             params['startkey'] = get_date_key(id, date_from)
         
@@ -35,15 +37,14 @@ def balance(id, date_from=None, date_to=None):
 def report(id, date_from=None, date_to=None, group_by_day=True):
     params = {'group':True, 'group_level':4}
     
-    if date_from is None and date_to is None:
-        params['startkey'] = [id]
-        params['endkey'] = [id, {}]
-    else:
-        if date_from:
-            params['startkey'] = get_date_key(id, date_from)
-        
-        if date_to:
-            params['endkey'] = get_date_key(id, date_to)
+    params['startkey'] = [id]
+    params['endkey'] = [id, {}]
+
+    if date_from:
+        params['startkey'] = get_date_key(id, date_from)
+    
+    if date_to:
+        params['endkey'] = get_date_key(id, date_to)
     
     result = Transaction.view('transactions/exact_balance_for_account', **params).all()
     
@@ -59,29 +60,27 @@ def transactions(id, date_from=None, date_to=None, income=False, outcome=False):
     if outcome:
         type = 2
     
-    if date_from is None and date_to is None:
-        params['startkey'] = [type, id]
-        params['endkey'] = [type, id, {}]
-    else:
-        if date_from:
-            params['startkey'] = [type] + get_date_key(id, date_from)
-        
-        if date_to:
-            params['endkey'] = [type] + get_date_key(id, date_to)
+    params['startkey'] = [type, id]
+    params['endkey'] = [type, id, {}]
+
+    if date_from:
+        params['startkey'] = [type] + get_date_key(id, date_from)
+    
+    if date_to:
+        params['endkey'] = [type] + get_date_key(id, date_to)
             
     return Transaction.view('transactions/transactions', **params)
 
 def all_transactions(id, date_from=None, date_to=None):
     params = {'include_docs':True, 'reduce':False, 'descending':True}
     
-    if date_from is None and date_to is None:
-        params['startkey'] = [id, {}]
-        params['endkey'] = [id]
-    else:
-        if date_from:
-            params['startkey'] = get_date_key(id, date_from)
-        
-        if date_to:
-            params['endkey'] = get_date_key(id, date_to)
+    params['startkey'] = [id, {}]
+    params['endkey'] = [id]
+
+    if date_from:
+        params['startkey'] = get_date_key(id, date_to)
+    
+    if date_to:
+        params['endkey'] = get_date_key(id, date_from)
             
     return Transaction.view('transactions/balance_for_account', **params)
