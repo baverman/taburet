@@ -35,7 +35,7 @@ class Account(Document):
 
 def accounts_walk(accounts):
     def get_accounts(parent, level):
-        subaccounts = sorted(r for r in accounts if (not parent and not r.parents) or (r.parents and parent == r.parents[-1])) 
+        subaccounts = sorted((r for r in accounts if (not parent and not r.parents) or (r.parents and parent == r.parents[-1])), key=lambda a:a.name) 
         for acc in subaccounts:
             yield level, acc
             for r in get_accounts(acc.id, level + 1):
