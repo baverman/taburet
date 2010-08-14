@@ -33,12 +33,14 @@ class Account(Document):
     def id(self):
         return self._id
 
-def accounts_walk(accounts):
+def accounts_walk(accounts, only_leaf=False):
     def get_accounts(parent, level):
         subaccounts = sorted((r for r in accounts if (not parent and not r.parents) or (r.parents and parent == r.parents[-1])), key=lambda a:a.name) 
         for acc in subaccounts:
-            yield level, acc
-            for r in get_accounts(acc.id, level + 1):
+            accs = list(get_accounts(acc.id, level + 1))
+            if not accs or not only_leaf:    
+                yield level, acc
+            for r in accs:
                 yield r
                 
     return get_accounts(None, 0)
