@@ -1,4 +1,4 @@
-from .model import Account, AccountsPlan
+from .model import Account, AccountsPlan, accounts_walk
 
 set_db = (Account,)
 module_deps = ('taburet.transactions',)

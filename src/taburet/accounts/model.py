@@ -33,6 +33,15 @@ class Account(Document):
     def id(self):
         return self._id
 
+def accounts_walk(accounts):
+    def get_accounts(parent, level):
+        subaccounts = sorted(r for r in accounts if (not parent and not r.parents) or (r.parents and parent == r.parents[-1])) 
+        for acc in subaccounts:
+            yield level, acc
+            for r in get_accounts(acc.id, level + 1):
+                yield r
+                
+    return get_accounts(None, 0)
 
 class AccountsPlan(object):
     def __init__(self):
