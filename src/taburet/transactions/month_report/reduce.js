@@ -4,12 +4,9 @@ function(keys, values, rereduce) {
 	var before = 0
 	
 	for each(v in values) {
-		if ( v.before === undefined) { 
-			debet += v.debet
-			kredit += v.kredit
-		} else {
-			before += v.before
-		}
+		debet += v.debet
+		kredit += v.kredit
+		before += v.before
 	}
 	
 	return {debet:Math.round(debet * 100.0) / 100.0,

@@ -5,17 +5,17 @@ function(doc) {
 		
 		if ( year < %(year)d || ( year == %(year)d && month < %(month)d ) ) {
 			for each(acc in doc.from_acc) {
-				emit(acc, {before: -doc.amount})
+				emit(acc, {before: -doc.amount, kredit:0, debet:0})
 			}
 			for each(acc in doc.to_acc) {
-				emit(acc, {before: doc.amount})
+				emit(acc, {before: doc.amount, kredit:0, debet:0})
 			}
 		} else if ( year == %(year)d && month == %(month)d ) {
 			for each(acc in doc.from_acc) {
-				emit(acc, {kredit:doc.amount, debet:0})
+				emit(acc, {before:0, kredit:doc.amount, debet:0})
 			}
 			for each(acc in doc.to_acc) {
-				emit(acc, {kredit:0, debet:doc.amount})
+				emit(acc, {before:0, kredit:0, debet:doc.amount})
 			}
 		}
 	}

@@ -1,6 +1,5 @@
 from couchdbkit import Property, BadValueError, DateTimeProperty as CDBKitDateTimeProperty
 
-from calendar import timegm
 import time, datetime
 
 class DateTimeProperty(CDBKitDateTimeProperty):
