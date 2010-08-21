@@ -7,6 +7,12 @@ def month_date_range(date):
     year, month = date.year, date.month
     return datetime.date(year, month, 1), datetime.date(year, month, calendar.monthrange(year, month)[1])
 
+def normalize_date(date):
+    if isinstance(date, datetime.date):
+        return datetime.datetime.combine(date, datetime.time())
+    
+    return date
+
 class SortedDict(dict):
     """
     A dictionary that keeps its keys in the order in which they're inserted.
