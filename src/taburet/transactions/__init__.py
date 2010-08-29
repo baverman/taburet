@@ -33,6 +33,17 @@ def balance(id, date_from=None, date_to=None):
         return Balance(result['debet'], result['kredit'])
     else:
         return Balance(0, 0)        
+    
+
+def balances(id_list):
+    '''
+    Возвращает балансы переданных счетов
+    
+    @return: list of Balance
+    '''
+    return dict((r['key'], Balance(r['value']['debet'], r['value']['kredit']))
+        for r in Transaction.get_db().view('transactions/balance', keys=id_list, group=True))
+    
 
 def report(id, date_from=None, date_to=None, group_by_day=True):
     params = {'group':True, 'group_level':4}
