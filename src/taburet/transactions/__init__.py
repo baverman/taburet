@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .model import Transaction, Balance, month_report
+from model import Transaction, Balance, month_report
 
 set_db = [Transaction]
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from couchdbkit import Document, ListProperty, FloatProperty, ResourceNotFound, ResourceConflict
 from taburet.cdbkit import DateTimeProperty 
 
@@ -35,7 +34,7 @@ def month_report(account_id_list, dt=None):
     year, month = dt.year, dt.month
     view_name = 'month_report_%s' % dt.strftime('%Y%m')
     design_id = '_design/' + view_name
-    
+
     if not Transaction.get_db().doc_exist(design_id):
         design_doc = {'_id':design_id, 'views':{'get':{
             'map': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'map.js')).read().decode('utf8') % {'year':year, 'month':month},
@@ -45,7 +44,7 @@ def month_report(account_id_list, dt=None):
             Transaction.get_db().save_doc(design_doc)
         except ResourceConflict:
             pass
-         
+    
     result = Transaction.view(view_name+'/get', keys=account_id_list, group=True)
     result = dict((r['key'], r['value']) for r in result) 
     
