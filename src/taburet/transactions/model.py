@@ -45,7 +45,7 @@ def month_report(account_id_list, dt=None):
         except ResourceConflict:
             pass
     
-    result = Transaction.view(view_name+'/get', keys=account_id_list, group=True)
+    result = Transaction.get_db().view(view_name+'/get', keys=account_id_list, group=True)
     result = dict((r['key'], r['value']) for r in result) 
     
     for id in account_id_list:
