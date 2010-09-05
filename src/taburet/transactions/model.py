@@ -36,9 +36,9 @@ def month_report(account_id_list, dt=None):
     design_id = '_design/' + view_name
 
     if not Transaction.get_db().doc_exist(design_id):
-        design_doc = {'_id':design_id, 'views':{'get':{
-            'map': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'map.js')).read().decode('utf8') % {'year':year, 'month':month},
-            'reduce': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'reduce.js')).read().decode('utf8'),
+        design_doc = {'_id':design_id, 'language':'erlang', 'views':{'get':{
+            'map': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'map.erl')).read().decode('utf8') % {'year':year, 'month':month},
+            'reduce': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'reduce.erl')).read().decode('utf8'),
         }}}
         try:
             Transaction.get_db().save_doc(design_doc)
