@@ -53,10 +53,16 @@ def process_row_change(treeview, force=False):
     
     if model.dirty_row_path and ( force or model.dirty_row_path != path ):
         row = model.get_row_from_path(model.dirty_row_path)
-        model.on_row_change(model, row, model.dirty_data)
+        
+        data = {}
+        for k, v in model.dirty_data.iteritems():
+            data[k] = getattr(model.rowmodel, k).from_string(v)
+            
+        model.rowmodel.row_changed(model, row, data)
+        
         model.dirty_row_path = None
 
-def init_editable_treeview(treeview, model, editable, noneditable):
+def init_editable_treeview(treeview, model):
     treeview.set_model(model)
     
     if getattr(treeview, 'edit_init_done', False):
@@ -73,13 +79,10 @@ def init_editable_treeview(treeview, model, editable, noneditable):
     treeview.column_order = []
     for idx, c in enumerate(treeview.get_columns()):
         cname = c.get_name()
-        renderer = c.get_cell_renderers()[0] 
-        if cname in editable:
-            renderer.props.editable = True
-        elif cname in noneditable:
-            renderer.props.editable = False
-        else:
-            raise Exception("Can't find column %s" % cname)
+        renderer = c.get_cell_renderers()[0]
+        rm = getattr(model.rowmodel, cname)
+        for k, v in rm.get_properties().iteritems(): 
+            renderer.set_property(k, v)
         
         renderer.connect('edited', treeview_edit_done)
         c.set_attributes(renderer, text=idx)
@@ -101,19 +104,17 @@ class CommonApp(object):
     
     
 class EditableListTreeModel(gtk.GenericTreeModel):
-    def __init__(self, data, to_string, on_row_change, empty):
+    def __init__(self, data, rowmodel):
         gtk.GenericTreeModel.__init__(self)
         self.data = data
 
-        if empty:
-            self.data.append(empty())
+        self.rowmodel = rowmodel
         
-        self.to_string = to_string
-            
+        if hasattr(rowmodel, 'new'):
+            self.data.append(rowmodel.new())
+        
         self.dirty_row_path = None
         self.dirty_data = {}
-        
-        self.on_row_change = on_row_change
 
     def get_row_from_path(self, path):
         if not len(self.data):
@@ -144,7 +145,7 @@ class EditableListTreeModel(gtk.GenericTreeModel):
         if self.dirty_row_path and self.dirty_row_path == node and field in self.dirty_data: 
             return self.dirty_data[field]
         
-        return self.to_string(self.data[node[0]], field)
+        return getattr(self.rowmodel, field).to_string(self.data[node[0]])
     
     def on_iter_next(self, node):
         if self.data:
