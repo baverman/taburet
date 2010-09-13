@@ -35,9 +35,6 @@ class PackageManager(object):
             if pname in self.package_dbs:
                 raise Exception('Package %s already has assigned db: %s' % (pname, db.uri))
             
-            for r  in package.set_db:
-                r.set_db(db)
-                
             self.package_dbs[pname] = db
             self.packages_to_set.add(pname)
             
@@ -99,4 +96,9 @@ class PackageManager(object):
         self.validate()
         
         for pname, db in self.package_dbs.iteritems():
-            self.sync_package(db, get_package(pname), verbose)
+            package = get_package(pname)
+
+            for r  in package.set_db:
+                r.set_db(db)
+            
+            self.sync_package(db, package, verbose)
