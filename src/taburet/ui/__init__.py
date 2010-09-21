@@ -128,6 +128,9 @@ class EditableListTreeModel(gtk.GenericTreeModel):
     def append_new(self):
         if hasattr(self.rowmodel, 'new'):
             self.data.append(self.rowmodel.new())
+            path = (len(self.data) - 1, )
+            iter = self.get_iter(path)
+            self.row_inserted(path, iter)
 
     def get_row_from_path(self, path):
         if not len(self.data):
