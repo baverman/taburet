@@ -51,11 +51,13 @@ def process_row_change(treeview, force=False):
     if model.dirty_row_path and ( force or model.dirty_row_path != path ):
         row = model.get_row_from_path(model.dirty_row_path)
         
-        data = {}
+        old_values = {}
         for k, v in model.dirty_data.iteritems():
-            data[k] = getattr(model.rowmodel, k).from_string(v)
+            rm = getattr(model.rowmodel, k)
+            old_values[k] = rm.to_string(row)
+            rm.from_string(row, v)
             
-        model.rowmodel.row_changed(model, row, data)
+        model.rowmodel.row_changed(model, row, old_values)
         
         model.dirty_row_path = None
 
