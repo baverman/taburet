@@ -8,8 +8,7 @@ def debug(func):
     
     return inner
 
-def process_focus_like_access(treeview):
-    path, current_column = treeview.get_cursor()
+def process_focus_like_access(treeview, path, current_column):
     columns = treeview.get_columns()
     for i, c in enumerate(columns):
         if c == current_column:
@@ -36,13 +35,11 @@ def process_focus_like_access(treeview):
             treeview.set_cursor(path, next_column, True)
             break
 
-def process_edit_done(treeview, new_text):
-    path, column = treeview.get_cursor()
-
+def process_edit_done(treeview, new_text, path, column):
     model = treeview.get_model()
     
     if not model.dirty_row_path:
-        model.dirty_row_path = path
+        model.dirty_row_path = (int(path),)
         model.dirty_data.clear()
     
     model.dirty_data[column.get_name()] = new_text
@@ -70,9 +67,9 @@ def init_editable_treeview(treeview, model):
         model.column_order = treeview.column_order
         return
     
-    def treeview_edit_done(renderer, path, new_text):
-        process_edit_done(treeview, new_text)
-        return process_focus_like_access(treeview)
+    def treeview_edit_done(renderer, path, new_text, column):
+        process_edit_done(treeview, new_text, path, column)
+        return process_focus_like_access(treeview, path, column)
     
     def treeview_cursor_changed(treeview):
         return process_row_change(treeview)
@@ -85,7 +82,7 @@ def init_editable_treeview(treeview, model):
         for k, v in rm.get_properties().iteritems(): 
             renderer.set_property(k, v)
         
-        renderer.connect('edited', treeview_edit_done)
+        renderer.connect('edited', treeview_edit_done, c)
         c.set_attributes(renderer, text=idx)
         
         if hasattr(rm, 'on_editing_started'):
