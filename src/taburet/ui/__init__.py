@@ -64,6 +64,7 @@ def process_row_change(treeview, force=False):
 
 def init_editable_treeview(treeview, model):
     treeview.set_model(model)
+    treeview.columns_autosize()
     
     if getattr(treeview, 'edit_init_done', False):
         model.column_order = treeview.column_order
@@ -86,6 +87,10 @@ def init_editable_treeview(treeview, model):
         
         renderer.connect('edited', treeview_edit_done)
         c.set_attributes(renderer, text=idx)
+        
+        if hasattr(rm, 'on_editing_started'):
+            renderer.connect('editing_started', rm.on_editing_started)
+        
         treeview.column_order.append(cname)
         
     model.column_order = treeview.column_order
