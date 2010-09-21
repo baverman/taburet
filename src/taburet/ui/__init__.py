@@ -89,7 +89,7 @@ def init_editable_treeview(treeview, model):
         c.set_attributes(renderer, text=idx)
         
         if hasattr(rm, 'on_editing_started'):
-            renderer.connect('editing_started', rm.on_editing_started)
+            renderer.connect('editing-started', rm.on_editing_started)
         
         treeview.column_order.append(cname)
         
