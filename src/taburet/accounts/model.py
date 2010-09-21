@@ -20,6 +20,10 @@ class Account(Document):
     def transactions(self, date_from=None, date_to=None, income=False, outcome=False):
         return transactions(self._id, date_from, date_to, income, outcome)
     
+    @property
+    def account_path(self):
+        return self.parents + [self._id]
+    
     def __repr__(self):
         return "<Account: %s>" % self._id
     
