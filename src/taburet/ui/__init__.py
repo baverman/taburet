@@ -16,15 +16,21 @@ def process_focus_like_access(treeview, path, current_column):
         
     if i >= len(columns):
         return
+
+    model = treeview.get_model()
     
     while True:
         i += 1
         if i >= len(columns):
-            model = treeview.get_model()
             next_iter = model.iter_next(model.get_iter(path))
             if not next_iter:
                 process_row_change(treeview, True)
-                break
+                
+                model.append_new()
+                
+                next_iter = model.iter_next(model.get_iter(path))
+                if not next_iter:
+                    break
             
             path = model.get_string_from_iter(next_iter)
             i = -1
@@ -113,12 +119,15 @@ class EditableListTreeModel(gtk.GenericTreeModel):
         self.data = data
 
         self.rowmodel = rowmodel
-        
-        if hasattr(rowmodel, 'new'):
-            self.data.append(rowmodel.new())
-        
+
+        self.append_new()
+                
         self.dirty_row_path = None
         self.dirty_data = {}
+
+    def append_new(self):
+        if hasattr(self.rowmodel, 'new'):
+            self.data.append(self.rowmodel.new())
 
     def get_row_from_path(self, path):
         if not len(self.data):
