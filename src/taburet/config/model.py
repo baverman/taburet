@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import weakref
 
 from couchdbkit import ResourceNotFound, ResourceConflict
 
@@ -10,6 +11,28 @@ def inc_updater(value):
 def dec_updater(value):
     return value - 1
 
+
+class Param(object):
+    def __init__(self, config, name):
+        self.config = weakref.ref(config)
+        self.name = name
+        
+    def get(self, default=NO_VALUE):
+        return self.config().get(self.name, default)
+    
+    def set(self, value):
+        self.config().set(self.name, value)
+        
+    def update(self, default, updater):
+        return self.config().update(self.name, default, updater)
+    
+    def inc(self):
+        return self.config().inc(self.name)
+
+    def dec(self):
+        return self.config().dec(self.name)
+
+        
 class Configuration(object):
     
     def __init__(self, db):
@@ -58,3 +81,6 @@ class Configuration(object):
     
     def dec(self, name):
         return self.update(name, 0, dec_updater)
+
+    def param(self, name):
+        return Param(self, name)
