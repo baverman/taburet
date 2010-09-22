@@ -1,1 +1,1 @@
-from .model import Configuration
+from model import Configuration

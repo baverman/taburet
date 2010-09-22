@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from couchdbkit import ResourceNotFound
+from couchdbkit import ResourceNotFound, ResourceConflict
 
 NO_VALUE = object()
+
+def inc_updater(value):
+    return value + 1
+
+def dec_updater(value):
+    return value - 1
 
 class Configuration(object):
     
@@ -29,3 +35,26 @@ class Configuration(object):
             doc = {'_id':name, 'value':value}
         
         self.db.save_doc(doc)
+        
+    def update(self, name, default, updater):
+        while True:
+            try:
+                doc = self.db.get(name)
+            except ResourceNotFound:
+                doc = {'_id':name, 'value':default}
+
+            doc['value'] = updater(doc['value']) 
+        
+            try:
+                self.db.save_doc(doc)
+                break
+            except ResourceConflict:
+                pass
+        
+        return doc['value']
+        
+    def inc(self, name):
+        return self.update(name, 0, inc_updater)
+    
+    def dec(self, name):
+        return self.update(name, 0, dec_updater)
