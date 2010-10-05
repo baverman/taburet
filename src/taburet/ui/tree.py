@@ -37,12 +37,23 @@ def process_focus_like_access(treeview, path, current_column):
 
 def process_edit_done(treeview, new_text, path, column):
     model = treeview.get_model()
-    
+    name = column.get_name()
+    rm = getattr(model.rowmodel, name)
+    row = model.get_row_from_path((int(path),))
+
     if not model.dirty_row_path:
         model.dirty_row_path = (int(path),)
         model.dirty_data.clear()
     
-    model.dirty_data[column.get_name()] = new_text
+    model.dirty_data[name] = new_text
+    
+    try:
+        rm.from_string(row, new_text)
+    except ValueError:
+        idle(treeview.set_cursor, path, column, True)
+        return False
+    
+    return True 
     
 def process_row_change(treeview, force=False):
     path, _ = treeview.get_cursor()
@@ -50,14 +61,7 @@ def process_row_change(treeview, force=False):
     
     if model.dirty_row_path and ( force or model.dirty_row_path != path ):
         row = model.get_row_from_path(model.dirty_row_path)
-        
-        old_values = {}
-        for k, v in model.dirty_data.iteritems():
-            rm = getattr(model.rowmodel, k)
-            old_values[k] = rm.to_string(row)
-            rm.from_string(row, v)
-            
-        model.rowmodel.row_changed(model, row, old_values)
+        model.rowmodel.row_changed(model, row)
         
         model.dirty_row_path = None
 
@@ -92,8 +96,8 @@ def init_editable_treeview(treeview, model):
         return
     
     def treeview_edit_done(renderer, path, new_text, column):
-        process_edit_done(treeview, new_text, path, column)
-        return process_focus_like_access(treeview, path, column)
+        if process_edit_done(treeview, new_text, path, column):
+            process_focus_like_access(treeview, path, column)
     
     def treeview_cursor_changed(treeview):
         return process_row_change(treeview)

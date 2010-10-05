@@ -11,6 +11,7 @@ class EditableListTreeModel(gtk.GenericTreeModel):
                 
         self.dirty_row_path = None
         self.dirty_data = {}
+        self.dirty_converted_data = {}
 
     def append_new(self):
         if hasattr(self.rowmodel, 'new'):
