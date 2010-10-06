@@ -107,6 +107,9 @@ def init_editable_treeview(treeview, model):
     def general_editing_started(renderer, editable, path):
         editable.connect('key-press-event', on_key_press_event)
 
+    def general_editing_canceled(renderer, column):
+        return True
+        
     treeview.column_order = []
     for idx, c in enumerate(treeview.get_columns()):
         cname = c.get_name()
@@ -122,6 +125,7 @@ def init_editable_treeview(treeview, model):
             renderer.connect('editing-started', rm.on_editing_started)
         
         renderer.connect('editing-started', general_editing_started)
+        renderer.connect('editing-canceled', general_editing_canceled, c)
         
         treeview.column_order.append(cname)
         

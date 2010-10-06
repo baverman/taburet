@@ -1,3 +1,4 @@
+import gtk
 import gobject
 
 def idle_callback(callable, args):
@@ -15,3 +16,7 @@ def debug(func):
         return func(*args)
     
     return inner
+
+def refresh_gui():
+    while gtk.events_pending():
+        gtk.main_iteration_do(block=False)
