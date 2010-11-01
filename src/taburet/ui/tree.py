@@ -51,6 +51,7 @@ def process_edit_done(treeview, new_text, path, column):
     try:
         rm.from_string(row, new_text)
     except ValueError, e:
+        del model.dirty_data[name]
         idle(treeview.set_cursor, path, column, True)
         idle(show_message, treeview.get_toplevel(), str(e), 5000)
         return False
