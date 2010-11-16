@@ -1,5 +1,5 @@
 import sys, os.path
-from couchdbkit import FileSystemDocsLoader
+from couchdbkit.designer.fs import document
 
 def get_package(package):
     if isinstance(package, basestring):
@@ -84,8 +84,11 @@ class PackageManager(object):
         for path in package.__path__:
             design_path = os.path.join(path, '_design')
             if os.path.exists(design_path):
-                loader = FileSystemDocsLoader(design_path)
-                loader.sync(db, verbose=verbose)
+                for dname in os.listdir(design_path):
+                    full_path = os.path.join(design_path, dname)
+                    if os.path.isdir(full_path):
+                        doc = document(full_path)
+                        doc.push((db,), force=True)
         
         design_deps = getattr(package, 'design_deps', False) 
         if design_deps:
