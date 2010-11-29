@@ -1,6 +1,3 @@
-import os.path
-import sys
-
 import calendar, datetime
 
 def month_date_range(date):
@@ -10,7 +7,7 @@ def month_date_range(date):
 def normalize_date(date):
     if isinstance(date, datetime.date):
         return datetime.datetime.combine(date, datetime.time())
-    
+
     return date
 
 class SortedDict(dict):
