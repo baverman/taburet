@@ -24,6 +24,13 @@ class Grid(gtk.Table):
         ),
     }
 
+    def create_widget(self, c):
+        w = c.create_widget()
+        w.first = False
+        w.last = False
+        w.connect('focus', self.on_focus)
+        return w
+
     def __init__(self, *columns):
         gtk.Table.__init__(self)
         self.set_set_scroll_adjustments_signal("set-scroll-adjustments")
@@ -38,7 +45,8 @@ class Grid(gtk.Table):
         self.resize_monitor_timer_id = None
 
         for col, c in enumerate(self.columns):
-            w = c.create_widget()
+            w = self.create_widget(c)
+            w.first = True
             self.grid.setdefault(0, {})[col] = w
             self.attach(w, col, col + 1, 0, 1,
                 xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
@@ -108,7 +116,7 @@ class Grid(gtk.Table):
         while height < maxy:
             row = len(self.grid)
             for col, c in enumerate(self.columns):
-                w = c.create_widget()
+                w = self.create_widget(c)
                 self.grid.setdefault(row, {})[col] = w
                 self.attach(w, col, col + 1, row, row + 1,
                     xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
@@ -137,6 +145,10 @@ class Grid(gtk.Table):
                 w = self.grid[row][col]
                 c.set_value(w, r)
                 w.show()
+                w.last = False
+
+        for col, c in enumerate(self.columns):
+            self.grid[row][col].last = True
 
         row += 1
         row_count = len(self.grid)
@@ -147,5 +159,19 @@ class Grid(gtk.Table):
 
             row += 1
 
+    def on_focus(self, widget, direction):
+        if direction == gtk.DIR_DOWN and widget.last and widget.is_focus():
+            if self._vadj.value < len(self.model) - self.visible_rows_count:
+                self._vadj.value += 1
+
+            return True
+
+        if direction == gtk.DIR_UP and widget.first and widget.is_focus():
+            if self._vadj.value > self._vadj.lower:
+                self._vadj.value -= 1
+
+            return True
+
+        return False
 
 gobject.type_register(Grid)

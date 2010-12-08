@@ -1,10 +1,7 @@
 *.pyc
 
-/.project
-/.pydevproject
-/.settings
 /.ropeproject
-/.scribes_project
+/.snaked_project
 
 /bookmark
 /build
