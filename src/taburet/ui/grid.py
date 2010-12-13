@@ -207,7 +207,7 @@ class Grid(gtk.Table):
 
     @guard('populating')
     @debug
-    def populate(self, from_row=0, skip_focus=False):
+    def populate(self, from_row=0, skip_focus=False, model_row_to_focus=None):
         if not self.model:
             return
 
@@ -223,6 +223,12 @@ class Grid(gtk.Table):
                 w.show()
                 w.last = False
                 w.row = row + from_row
+
+                if model_row_to_focus is not None:
+                    frow, fcolumn = model_row_to_focus
+                    if w.row == frow and fcolumn is c:
+                        w.grab_focus()
+                        self.set_cursor(w)
 
                 if w.row == self.current_row:
                     if c.name in self.dirty_row:
@@ -250,11 +256,12 @@ class Grid(gtk.Table):
             row += 1
 
         if self.current_row is None and self.get_focus_child():
-            w = self.get_focus_child()
-            self.current_row = w.row
-            self.current_vrow = w.vrow
-            self.current_column = w.column
-            print self.current_row, self.current_vrow, self.current_column
+            self.set_cursor(self.get_focus_child())
+
+    def set_cursor(self, widget):
+        self.current_row = widget.row
+        self.current_vrow = widget.vrow
+        self.current_column = widget.column
 
     @debug
     def jump_to_error_widget(self, row, w):
@@ -263,6 +270,11 @@ class Grid(gtk.Table):
             self.current_vrow = w.vrow
             idle(w.grab_focus)
             idle(self.populate, self.from_row, True)
+        else:
+            if row < self.from_row:
+                idle(self.populate, row, False, (row, w.column))
+            else:
+                idle(self.populate, self.from_row + row - self.to_row, False, (row, w.column))
 
     @debug
     def flush_dirty_row(self, row, vrow):
@@ -284,14 +296,16 @@ class Grid(gtk.Table):
     @debug
     def on_focus(self, widget, direction):
         if direction == gtk.DIR_DOWN and widget.last and widget.is_focus():
-            if self._vadj.value < len(self.model) - self.visible_rows_count:
-                self._vadj.value += 1
+            new_value = widget.row + 2 - self.visible_rows_count
+            if new_value <= len(self.model) - self.visible_rows_count:
+                self._vadj.value = new_value
 
             return True
 
         if direction == gtk.DIR_UP and widget.first and widget.is_focus():
-            if self._vadj.value > self._vadj.lower:
-                self._vadj.value -= 1
+            new_value = widget.row - 1
+            if new_value >= self._vadj.lower:
+                self._vadj.value = new_value
 
             return True
 
