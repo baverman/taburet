@@ -28,3 +28,30 @@ def debug(func):
 def refresh_gui():
     while gtk.events_pending():
         gtk.main_iteration_do(block=False)
+
+def guard(name):
+    def decorator(func):
+        def inner(self, *args, **kwargs):
+            setattr(self, name, True)
+            try:
+                func(self, *args, **kwargs)
+            except:
+                raise
+            finally:
+                setattr(self, name, False)
+
+        return inner
+
+    return decorator
+
+def guarded_by(name, result=None):
+    def decorator(func):
+        def inner(self, *args, **kwargs):
+            if getattr(self, name, False):
+                return result
+            else:
+                return func(self, *args, **kwargs)
+
+        return inner
+
+    return decorator
