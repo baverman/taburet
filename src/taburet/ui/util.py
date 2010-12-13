@@ -9,12 +9,20 @@ def idle_callback(callable, args):
 def idle(callable, *args, **kwargs):
     return gobject.idle_add(idle_callback, callable, (args, kwargs))
 
+depth = [0]
 def debug(func):
-    return func
-    def inner(*args):
-        print func.__name__, args[1:]
-        return func(*args)
-    
+    def inner(*args, **kwargs):
+        print '   '*depth[0], func.__name__, args[1:], kwargs
+        depth[0] += 1
+        try:
+            result = func(*args)
+        except:
+            raise
+        finally:
+            depth[0] -= 1
+
+        return result
+
     return inner
 
 def refresh_gui():

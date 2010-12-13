@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import time
 import gtk
 import gobject
 import glib
 
-from . import idle
+from . import idle, refresh_gui
+from .util import debug
 
 def guard(name):
     def decorator(func):
@@ -19,6 +22,11 @@ def guard(name):
         return inner
 
     return decorator
+
+
+class BadValueException(Exception):
+    def __init__(self, message):
+        super(BadValueException, self).__init__(message)
 
 
 class GridColumn(object):
@@ -46,6 +54,18 @@ class GridColumn(object):
         if not self.changing:
             dirty_row[self.name] = entry.get_text()
 
+
+class IntGridColumn(GridColumn):
+    def update_row_value(self, dirty_row, row):
+        value_to_convert = dirty_row[self.name]
+        try:
+            value = int(value_to_convert)
+        except ValueError:
+            raise BadValueException('Нельзя привести "%s" к числу' % value_to_convert)
+
+        row[self.name] = value
+
+
 class Grid(gtk.Table):
     __gsignals__ = {
         "set-scroll-adjustments": (
@@ -66,6 +86,9 @@ class Grid(gtk.Table):
         self.grid = {}
         self.dirty_row = {}
         self.current_row = None
+        self.current_vrow = None
+        self.from_row = None
+        self.to_row = None
         self.current_column = None
         self.populating = False
 
@@ -73,7 +96,7 @@ class Grid(gtk.Table):
         self.resize_monitor_timer_id = None
 
         for col, c in enumerate(self.columns):
-            w = self.create_widget(c)
+            w = self.create_widget(0, c)
             w.first = True
             self.grid.setdefault(0, {})[col] = w
             self.attach(w, col, col + 1, 0, 1,
@@ -81,11 +104,12 @@ class Grid(gtk.Table):
 
         self.visible_rows_count = 1
 
-    def create_widget(self, c):
+    def create_widget(self, r, c):
         w = c.create_widget(self.dirty_row)
         w.first = False
         w.last = False
         w.row = None
+        w.vrow = r
         w.column = c
         w.connect('focus', self.on_focus)
         return w
@@ -131,7 +155,9 @@ class Grid(gtk.Table):
             self._vadj = v_adjustment
 
     def vscroll_value_changed(self, adj):
-        idle(self.populate, int(adj.get_value()))
+        new_from_row = int(adj.value)
+        if self.from_row != new_from_row:
+            idle(self.populate, new_from_row)
 
     def fill_area_with_widgets(self):
         _, _, _, maxy, _ = self.window.get_geometry()
@@ -153,7 +179,7 @@ class Grid(gtk.Table):
         while height < maxy:
             row = len(self.grid)
             for col, c in enumerate(self.columns):
-                w = self.create_widget(c)
+                w = self.create_widget(row, c)
                 self.grid.setdefault(row, {})[col] = w
                 self.attach(w, col, col + 1, row, row + 1,
                     xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
@@ -170,10 +196,12 @@ class Grid(gtk.Table):
             self.must_populate_data = True
 
     @guard('populating')
-    def populate(self, from_row=0):
+    @debug
+    def populate(self, from_row=0, skip_focus=False):
         if not self.model:
             return
 
+        self.from_row = from_row
         if from_row == 0:
             self._vadj.set_all(0, 0, len(self.model)+3,
                 1, self.visible_rows_count, self.visible_rows_count)
@@ -190,17 +218,17 @@ class Grid(gtk.Table):
                     if c.name in self.dirty_row:
                         c.set_dirty_value(w, self.dirty_row)
 
-        to_row = row + from_row
+        self.to_row = row + from_row
         for col, c in enumerate(self.columns):
             self.grid[row][col].last = True
 
-        print from_row, to_row, self.current_row
-
-        if self.current_row is not None:
+        if not skip_focus and self.current_row is not None:
             child = self.get_focus_child()
             if child and child.row != self.current_row:
-                self.flush_dirty_row(self.current_row)
+                if not self.flush_dirty_row(self.current_row, self.current_vrow):
+                    return
                 self.current_row = child.row
+                self.current_vrow = child.vrow
 
         row += 1
         row_count = len(self.grid)
@@ -211,18 +239,34 @@ class Grid(gtk.Table):
 
             row += 1
 
-    def flush_dirty_row(self, row):
+    @debug
+    def jump_to_error_widget(self, row, w):
+        if self.from_row <= row <= self.to_row:
+            self.current_row = row
+            self.current_vrow = w.vrow
+            idle(w.grab_focus)
+            idle(self.populate, self.from_row, True)
+
+    @debug
+    def flush_dirty_row(self, row, vrow):
         if self.dirty_row:
-            print self.dirty_row
             for col, c in enumerate(self.columns):
                 if c.name in self.dirty_row:
-                    c.update_row_value(self.dirty_row, self.model[self.current_row])
+                    try:
+                        c.update_row_value(self.dirty_row, self.model[row])
+                    except BadValueException, e:
+                        print e
+                        self.jump_to_error_widget(row, self.grid[vrow][col])
+                        return False
 
             self.dirty_row.clear()
 
+        return True
+
+    @debug
     def on_focus(self, widget, direction):
         if self.populating:
-            return True
+            return False
 
         if direction == gtk.DIR_DOWN and widget.last and widget.is_focus():
             if self._vadj.value < len(self.model) - self.visible_rows_count:
@@ -238,16 +282,21 @@ class Grid(gtk.Table):
 
         return False
 
+    @debug
     def on_child_focus(self, table, widget):
         if not self.populating:
             if widget:
                 if self.current_row is not None and self.current_row != widget.row:
-                    self.flush_dirty_row(self.current_row)
+                    if not self.flush_dirty_row(self.current_row, self.current_vrow):
+                        self.stop_emission('set-focus-child')
+                        return
 
                 self.current_row = widget.row
                 self.current_column = widget.column
+                self.current_vrow = widget.vrow
             else:
                 self.current_row = None
                 self.current_column = None
+                self.current_vrow = None
 
 gobject.type_register(Grid)
