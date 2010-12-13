@@ -23,6 +23,18 @@ def guard(name):
 
     return decorator
 
+def guarded_by(name, result=None):
+    def decorator(func):
+        def inner(self, *args, **kwargs):
+            if getattr(self, name, False):
+                return result
+            else:
+                return func(self, *args, **kwargs)
+
+        return inner
+
+    return decorator
+
 
 class BadValueException(Exception):
     def __init__(self, message):
@@ -32,7 +44,6 @@ class BadValueException(Exception):
 class GridColumn(object):
     def __init__(self, name):
         self.name = name
-        self.changing = False
 
     def create_widget(self, dirty_row):
         e = gtk.Entry()
@@ -50,9 +61,9 @@ class GridColumn(object):
     def update_row_value(self, dirty_row, row):
         row[self.name] = dirty_row[self.name]
 
+    @guarded_by('changing')
     def on_changed(self, entry, dirty_row):
-        if not self.changing:
-            dirty_row[self.name] = entry.get_text()
+        dirty_row[self.name] = entry.get_text()
 
 
 class IntGridColumn(GridColumn):
@@ -90,7 +101,6 @@ class Grid(gtk.Table):
         self.from_row = None
         self.to_row = None
         self.current_column = None
-        self.populating = False
 
         self.last_resize = None
         self.resize_monitor_timer_id = None
@@ -239,6 +249,13 @@ class Grid(gtk.Table):
 
             row += 1
 
+        if self.current_row is None and self.get_focus_child():
+            w = self.get_focus_child()
+            self.current_row = w.row
+            self.current_vrow = w.vrow
+            self.current_column = w.column
+            print self.current_row, self.current_vrow, self.current_column
+
     @debug
     def jump_to_error_widget(self, row, w):
         if self.from_row <= row <= self.to_row:
@@ -263,11 +280,9 @@ class Grid(gtk.Table):
 
         return True
 
+    @guarded_by('populating', False)
     @debug
     def on_focus(self, widget, direction):
-        if self.populating:
-            return False
-
         if direction == gtk.DIR_DOWN and widget.last and widget.is_focus():
             if self._vadj.value < len(self.model) - self.visible_rows_count:
                 self._vadj.value += 1
@@ -282,21 +297,21 @@ class Grid(gtk.Table):
 
         return False
 
+    @guarded_by('populating')
     @debug
     def on_child_focus(self, table, widget):
-        if not self.populating:
-            if widget:
-                if self.current_row is not None and self.current_row != widget.row:
-                    if not self.flush_dirty_row(self.current_row, self.current_vrow):
-                        self.stop_emission('set-focus-child')
-                        return
+        if widget:
+            if self.current_row is not None and self.current_row != widget.row:
+                if not self.flush_dirty_row(self.current_row, self.current_vrow):
+                    self.stop_emission('set-focus-child')
+                    return
 
-                self.current_row = widget.row
-                self.current_column = widget.column
-                self.current_vrow = widget.vrow
-            else:
-                self.current_row = None
-                self.current_column = None
-                self.current_vrow = None
+            self.current_row = widget.row
+            self.current_column = widget.column
+            self.current_vrow = widget.vrow
+        else:
+            self.current_row = None
+            self.current_column = None
+            self.current_vrow = None
 
 gobject.type_register(Grid)
