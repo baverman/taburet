@@ -5,20 +5,17 @@ import gtk
 import gobject
 import glib
 
-from .util import idle, guard, guarded_by
+from .util import idle, guard, guarded_by, debug
 
-
-class BadValueException(Exception):
-    def __init__(self, message):
-        super(BadValueException, self).__init__(message)
-
+class BadValueException(Exception): pass
 
 class GridColumn(object):
-    def __init__(self, name, label=None, editable=True, width=None):
+    def __init__(self, name, label=None, editable=True, width=None, default=''):
         self.name = name
         self.label = label
         self.editable = editable
         self.width = width
+        self.default = default
 
     def create_widget(self, dirty_row):
         e = gtk.Entry()
@@ -38,7 +35,10 @@ class GridColumn(object):
         self._set_value(entry, row)
 
     def _set_value(self, entry, row):
-        entry.set_text(str(row[self.name]))
+        try:
+            entry.set_text(str(row[self.name]))
+        except KeyError:
+            entry.set_text(self.default)
 
     @guard('changing')
     def set_dirty_value(self, entry, row):
@@ -120,6 +120,13 @@ class DirtyRow(dict):
         self[column.name] = column.get_dirty_value(widget)
         self.model_row = widget.row
 
+    def jump_to_new_row(self, col=0):
+        new_row_num = self.model_row + 1
+        fr = self.grid.from_row
+        if new_row_num >= self.grid.from_row + self.grid.visible_rows_count:
+            fr += 1
+        idle(self.grid.populate, fr, False, (new_row_num, col))
+
 
 class Grid(gtk.Table):
     __gsignals__ = {
@@ -136,6 +143,7 @@ class Grid(gtk.Table):
         self.connect_after('realize', self.on_after_realize)
         self.connect_after('size-allocate', self.on_after_size_allocate)
         self.connect('set-focus-child', self.on_child_focus)
+        self.connect('destroy', self.on_destroy)
 
         self.columns = columns
         self.headers = [None] * len(columns)
@@ -152,13 +160,12 @@ class Grid(gtk.Table):
             h = self.headers[col] = c.get_title_widget()
             self.attach(h, col, col + 1, 0, 1,
                 xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
-            w = self.create_widget(0, c)
-            w.first = True
-            self.grid.setdefault(0, {})[col] = w
-            self.attach(w, col, col + 1, 1, 2,
-                xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
 
-        self.visible_rows_count = 1
+        self.visible_rows_count = 0
+
+    def on_destroy(self, grid):
+        if hasattr(self, '_vscroll_handler_id'):
+            self._vadj.handler_disconnect(self._vscroll_handler_id)
 
     def create_widget(self, r, c):
         w = c.create_widget(self.dirty_row)
@@ -172,7 +179,8 @@ class Grid(gtk.Table):
 
     def on_after_realize(self, table):
         idle(self.fill_area_with_widgets)
-        idle(self.populate, int(self._vadj.get_value()))
+        if hasattr(self, '_vadj'):
+            idle(self.populate, int(round(self._vadj.get_value())))
 
     def on_after_size_allocate(self, table, rect):
         self.last_resize = time.time()
@@ -180,7 +188,7 @@ class Grid(gtk.Table):
             self.resize_monitor_timer_id = glib.timeout_add(100, self.monitor_resize)
 
         idle(self.fill_area_with_widgets)
-        idle(self.populate, int(self._vadj.get_value()))
+        idle(self.populate, int(round(self._vadj.get_value())))
 
     def monitor_resize(self):
         if time.time() - self.last_resize > 0.5:
@@ -192,7 +200,6 @@ class Grid(gtk.Table):
 
     def get_header_height(self):
         result = max(h.size_request()[1] for h in self.headers)
-        result += self.get_row_spacing(0)
         return result
 
     def remove_partial_row_visibility(self):
@@ -200,10 +207,9 @@ class Grid(gtk.Table):
 
         height = self.get_header_height()
         for r in range(self.visible_rows_count):
+            height += self.get_row_spacing(r)
             row_height = max(w.size_request()[1] for w in self.grid[r].values())
             height += row_height
-            if r < self.visible_rows_count - 1:
-                height += self.get_row_spacing(r + 1)
 
         self.window.resize(w, height)
 
@@ -212,11 +218,12 @@ class Grid(gtk.Table):
         self._hadj = h_adjustment
 
         if v_adjustment:
-            v_adjustment.connect("value-changed", self.vscroll_value_changed)
+            self._vscroll_handler_id = v_adjustment.connect(
+                "value-changed", self.vscroll_value_changed)
             self._vadj = v_adjustment
 
     def vscroll_value_changed(self, adj):
-        new_from_row = int(adj.value)
+        new_from_row = int(round(adj.value))
         if self.from_row != new_from_row:
             idle(self.populate, new_from_row)
 
@@ -241,12 +248,14 @@ class Grid(gtk.Table):
             row = len(self.grid)
             for col, c in enumerate(self.columns):
                 w = self.create_widget(row, c)
+                if row == 0:
+                    w.first = True
                 self.grid.setdefault(row, {})[col] = w
                 self.attach(w, col, col + 1, row+1, row + 2,
                     xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
 
             height += max(w.size_request()[1] for w in self.grid[row].values())
-            height += self.get_row_spacing(row-1)
+            height += self.get_row_spacing(row)
             self.visible_rows_count += 1
 
     def set_model(self, model, dirty_row):
@@ -264,7 +273,7 @@ class Grid(gtk.Table):
 
         self.from_row = from_row
         if from_row == 0:
-            self._vadj.set_all(0, 0, len(self.model)+3,
+            self._vadj.set_all(0, 0, len(self.model),
                 1, self.visible_rows_count, self.visible_rows_count)
 
         row = -1
