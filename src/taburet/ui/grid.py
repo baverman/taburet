@@ -110,10 +110,11 @@ class DirtyRow(dict):
 
     def widget_changed(self, widget, column):
         if self and self.model_row != widget.row:
-            print 'Ahtung!!! Unflashed dirty row', self.model_row, widget.row
+            print 'Ahtung!!! Unflushed dirty row', self.model_row, widget.row
 
         self[column.name] = column.get_dirty_value(widget)
         self.model_row = widget.row
+
 
 class Grid(gtk.Table):
     __gsignals__ = {
@@ -132,6 +133,7 @@ class Grid(gtk.Table):
         self.connect('set-focus-child', self.on_child_focus)
 
         self.columns = columns
+        self.headers = [None] * len(columns)
         self.grid = {}
         self.dirty_row = dirty_row or DirtyRow()
         self.dirty_row.grid = self
@@ -144,7 +146,8 @@ class Grid(gtk.Table):
         self.resize_monitor_timer_id = None
 
         for col, c in enumerate(self.columns):
-            self.attach(c.get_title_widget(), col, col + 1, 0, 1,
+            h = self.headers[col] = c.get_title_widget()
+            self.attach(h, col, col + 1, 0, 1,
                 xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
             w = self.create_widget(0, c)
             w.first = True
@@ -184,15 +187,20 @@ class Grid(gtk.Table):
 
         return True
 
+    def get_header_height(self):
+        result = max(h.size_request()[1] for h in self.headers)
+        result += self.get_row_spacing(0)
+        return result
+
     def remove_partial_row_visibility(self):
         _, _, w, maxy, _ = self.window.get_geometry()
 
-        height = 0
+        height = self.get_header_height()
         for r in range(self.visible_rows_count):
             row_height = max(w.size_request()[1] for w in self.grid[r].values())
             height += row_height
             if r < self.visible_rows_count - 1:
-                height += self.get_row_spacing(r)
+                height += self.get_row_spacing(r + 1)
 
         self.window.resize(w, height)
 
@@ -214,12 +222,12 @@ class Grid(gtk.Table):
 
         self.visible_rows_count = 0
 
-        height = 0
+        height = self.get_header_height()
         row_count = len(self.grid)
         for r in range(row_count):
             height += max(w.size_request()[1] for w in self.grid[r].values())
             if r < row_count - 1:
-                height += self.get_row_spacing(r)
+                height += self.get_row_spacing(r + 1)
 
             self.visible_rows_count += 1
 
