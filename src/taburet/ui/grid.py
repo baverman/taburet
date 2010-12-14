@@ -82,27 +82,32 @@ class FloatGridColumn(GridColumn):
 
 
 class DirtyRow(dict):
-    def __init__(self):
+    def __init__(self, grid, on_commit=None, on_error=None):
         super(DirtyRow, self).__init__()
         self.model_row = None
+        self.grid = grid
+        self.on_commit = on_commit
+        self.on_error = on_error
 
     def flush(self):
         if self and self.model_row is not None:
+            row_to_commit = self.grid.model[self.model_row]
             for col, c in enumerate(self.grid.columns):
                 if c.name in self:
                     try:
-                        c.update_row_value(self, self.grid.model[self.model_row])
+                        c.update_row_value(self, row_to_commit)
                     except BadValueException, e:
-                        self.on_error(e)
+                        if self.on_error:
+                            self.on_error(self, e)
                         self.grid.jump_to_error_widget(self.model_row, col)
                         return False
+
+            if self.on_commit:
+                self.on_commit(self, row_to_commit)
 
             self.clear()
 
         return True
-
-    def on_error(self, e):
-        print e
 
     def clear(self):
         super(DirtyRow, self).clear()
@@ -124,7 +129,7 @@ class Grid(gtk.Table):
         ),
     }
 
-    def __init__(self, columns, dirty_row=None):
+    def __init__(self, columns):
         gtk.Table.__init__(self)
         self.set_set_scroll_adjustments_signal("set-scroll-adjustments")
 
@@ -135,12 +140,10 @@ class Grid(gtk.Table):
         self.columns = columns
         self.headers = [None] * len(columns)
         self.grid = {}
-        self.dirty_row = dirty_row or DirtyRow()
-        self.dirty_row.grid = self
+        self.dirty_row = None
         self.current_row = None
         self.from_row = None
         self.to_row = None
-        self.current_column = None
 
         self.last_resize = None
         self.resize_monitor_timer_id = None
@@ -246,8 +249,9 @@ class Grid(gtk.Table):
             height += self.get_row_spacing(row-1)
             self.visible_rows_count += 1
 
-    def set_model(self, model):
+    def set_model(self, model, dirty_row):
         self.model = model
+        self.dirty_row = dirty_row
         if self.window:
             self.populate()
         else:
@@ -276,7 +280,7 @@ class Grid(gtk.Table):
                     frow, fcolumn = model_row_to_focus
                     if w.row == frow and fcolumn == col:
                         w.grab_focus()
-                        self.set_cursor(w)
+                        self.current_row = w.row
 
                 if w.row == self.current_row:
                     if c.name in self.dirty_row:
@@ -304,11 +308,7 @@ class Grid(gtk.Table):
             row += 1
 
         if self.current_row is None and self.get_focus_child():
-            self.set_cursor(self.get_focus_child())
-
-    def set_cursor(self, widget):
-        self.current_row = widget.row
-        self.current_column = widget.column
+            self.current_row = self.get_focus_child().row
 
     def jump_to_error_widget(self, row, col):
         if self.from_row <= row <= self.to_row:
@@ -355,9 +355,7 @@ class Grid(gtk.Table):
                     return
 
             self.current_row = widget.row
-            self.current_column = widget.column
         else:
             self.current_row = None
-            self.current_column = None
 
 gobject.type_register(Grid)
