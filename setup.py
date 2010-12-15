@@ -11,11 +11,6 @@ setup(
     packages = find_packages(),
     install_requires = ['blinker', 'pyExcelerator', 'couchdbkit'],
     include_package_data = True,
-    #entry_points = {
-    #    'gui_scripts': [
-    #        'snaked = snaked.core.run:run',
-    #    ]
-    #},
     url = 'http://github.com/baverman/taburet',
     classifiers = [
         "Programming Language :: Python",
