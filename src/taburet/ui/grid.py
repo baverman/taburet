@@ -5,7 +5,7 @@ import gtk
 import gobject
 import glib
 
-from .util import idle, guard, guarded_by, debug
+from . import idle, guard, guarded_by, debug
 
 class BadValueException(Exception): pass
 
@@ -222,10 +222,18 @@ class Grid(gtk.Table):
                 "value-changed", self.vscroll_value_changed)
             self._vadj = v_adjustment
 
+    @guarded_by('populating')
     def vscroll_value_changed(self, adj):
         new_from_row = int(round(adj.value))
         if self.from_row != new_from_row:
             idle(self.populate, new_from_row)
+
+    def set_cursor(self, row, col):
+        need_scroll, w, from_row = self.get_jump_info(row, col)
+        if need_scroll:
+            idle(self.populate, from_row, False, (row, col))
+        else:
+            w.grab_focus()
 
     def fill_area_with_widgets(self):
         _, _, _, maxy, _ = self.window.get_geometry()
@@ -272,9 +280,12 @@ class Grid(gtk.Table):
             return
 
         self.from_row = from_row
-        if from_row == 0:
-            self._vadj.set_all(0, 0, len(self.model),
+        if self._vadj.page_size != self.visible_rows_count or self._vadj.upper != len(self.model):
+            self._vadj.set_all(from_row, 0, len(self.model),
                 1, self.visible_rows_count, self.visible_rows_count)
+
+        if int(round(self._vadj.value)) != from_row:
+            self._vadj.value = from_row
 
         row = -1
         for row, r in enumerate(self.model[from_row:from_row + self.visible_rows_count]):
@@ -319,21 +330,29 @@ class Grid(gtk.Table):
         if self.current_row is None and self.get_focus_child():
             self.current_row = self.get_focus_child().row
 
-    def jump_to_error_widget(self, row, col):
+    def get_jump_info(self, row, col):
         if self.from_row <= row <= self.to_row:
-            self.current_row = row
             for r in self.grid.values():
                 for c, column in enumerate(self.columns):
                     w = r[c]
                     if w.row == row and col == c:
-                        idle(w.grab_focus)
-                        idle(self.populate, self.from_row, True)
+                        return False, w, self.from_row
         else:
             if row < self.from_row:
-                idle(self.populate, row, False, (row, col))
+                return True, None, row
             else:
-                idle(self.populate, self.from_row + row - self.to_row, False, (row, col))
+                return True, None, self.from_row + row - self.to_row
 
+        raise Exception("Can't get widget for (%d, %d)" % (row, col))
+
+    def jump_to_error_widget(self, row, col):
+        need_scroll, w, from_row = self.get_jump_info(row, col)
+        if need_scroll:
+            idle(self.populate, from_row, False, (row, col))
+        else:
+            self.current_row = row
+            idle(w.grab_focus)
+            idle(self.populate, from_row, True)
 
     @guarded_by('populating')
     def on_focus(self, widget, direction):

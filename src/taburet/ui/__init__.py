@@ -1,7 +1,31 @@
 from os.path import join, dirname
+import functools
 
 import gtk
 import gobject
+
+depth = [0]
+def debug(func=None):
+    print_first = func is True
+    def decorated(func):
+        @functools.wraps(func)
+        def inner(*args, **kwargs):
+            print '   '*depth[0], func.__name__, args[0 if print_first else 1:], kwargs
+            depth[0] += 1
+            try:
+                result = func(*args)
+            except:
+                raise
+            finally:
+                depth[0] -= 1
+
+            return result
+        return inner
+
+    if func is not True:
+        return decorated(func)
+    else:
+        return decorated
 
 def idle_callback(callable, args):
     args, kwargs = args
@@ -9,7 +33,11 @@ def idle_callback(callable, args):
     return False
 
 def idle(callable, *args, **kwargs):
-    return gobject.idle_add(idle_callback, callable, (args, kwargs))
+    options = {}
+    if 'priority' in kwargs:
+        options['priority'] = kwargs['priority']
+        del kwargs['priority']
+    return gobject.idle_add(idle_callback, callable, (args, kwargs), **options)
 
 def join_to_file_dir(filename, *args):
     return join(dirname(filename), *args)
@@ -18,6 +46,33 @@ def refresh_gui():
     while gtk.events_pending():
         gtk.main_iteration_do(block=False)
 
+def guard(name):
+    def decorator(func):
+        @functools.wraps(func)
+        def inner(self, *args, **kwargs):
+            setattr(self, name, True)
+            try:
+                func(self, *args, **kwargs)
+            except:
+                raise
+            finally:
+                setattr(self, name, False)
+
+        return inner
+
+    return decorator
+
+def guarded_by(name, result=None):
+    def decorator(func):
+        def inner(self, *args, **kwargs):
+            if getattr(self, name, False):
+                return result
+            else:
+                return func(self, *args, **kwargs)
+
+        return inner
+
+    return decorator
 
 class CommonApp(object):
     def gtk_main_quit(self, widget):
