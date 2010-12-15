@@ -1,0 +1,2 @@
+recursive-include taburet *.erl *.js
+include LICENSE
