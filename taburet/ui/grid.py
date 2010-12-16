@@ -10,18 +10,20 @@ from . import idle, guard, guarded_by, debug
 class BadValueException(Exception): pass
 
 class GridColumn(object):
-    def __init__(self, name, label=None, editable=True, width=None, default=''):
+    def __init__(self, name, label=None, editable=True, width=None, align=0, default=''):
         self.name = name
         self.label = label
         self.editable = editable
         self.width = width
         self.default = default
+        self.align = align
 
     def create_widget(self, dirty_row):
         e = gtk.Entry()
 
         e.set_editable(self.editable)
         e.props.can_focus = self.editable
+        e.set_alignment(self.align)
 
         if self.width:
             e.set_width_chars(self.width)
@@ -65,20 +67,30 @@ class IntGridColumn(GridColumn):
         try:
             value = int(value_to_convert)
         except ValueError:
-            raise BadValueException('Нельзя привести "%s" к числу' % value_to_convert)
+            raise BadValueException('Нельзя привести "%s" к целому числу' % value_to_convert)
 
         row[self.name] = value
 
 
 class FloatGridColumn(GridColumn):
+    def __init__(self, name, format='%.2f', **kwargs):
+        GridColumn.__init__(self, name, align=1, **kwargs)
+        self.format = format
+
     def update_row_value(self, dirty_row, row):
         value_to_convert = dirty_row[self.name]
         try:
-            value = float(value_to_convert)
+            value = float(value_to_convert.replace(',', '.'))
         except ValueError:
             raise BadValueException('Нельзя привести "%s" к числу' % value_to_convert)
 
         row[self.name] = value
+
+    def _set_value(self, entry, row):
+        try:
+            entry.set_text(self.format % row[self.name])
+        except KeyError:
+            entry.set_text(self.default)
 
 
 def match_func(completion, key, iter):
@@ -89,8 +101,8 @@ def match_func(completion, key, iter):
     return False
 
 class AutocompleteColumn(GridColumn):
-    def __init__(self, name, choices, *args, **kwargs):
-        GridColumn.__init__(self, name, *args, **kwargs)
+    def __init__(self, name, choices, **kwargs):
+        GridColumn.__init__(self, name, **kwargs)
         self.model = gtk.ListStore(str)
 
         for v in choices:
