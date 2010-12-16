@@ -1,2 +1,2 @@
-recursive-include taburet *.erl *.js
+recursive-include taburet *.erl *.js language
 include LICENSE
