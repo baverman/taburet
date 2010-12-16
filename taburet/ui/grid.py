@@ -81,6 +81,37 @@ class FloatGridColumn(GridColumn):
         row[self.name] = value
 
 
+def match_func(completion, key, iter):
+    text = unicode(completion.get_model().get_value(iter, 0)).lower()
+    if unicode(key).lower() in text:
+        return True
+
+    return False
+
+class AutocompleteColumn(GridColumn):
+    def __init__(self, name, choices, *args, **kwargs):
+        GridColumn.__init__(self, name, *args, **kwargs)
+        self.model = gtk.ListStore(str)
+
+        for v in choices:
+            self.model.append((str(v),))
+
+    def create_widget(self, *args):
+        w = super(AutocompleteColumn, self).create_widget(*args)
+
+        completion = gtk.EntryCompletion()
+        completion.set_model(self.model)
+        completion.set_text_column(0)
+        completion.set_match_func(match_func)
+        completion.set_inline_completion(True)
+        completion.set_inline_selection(True)
+        completion.set_popup_set_width(False)
+
+        w.set_completion(completion)
+
+        return w
+
+
 class DirtyRow(dict):
     def __init__(self, grid, on_commit=None, on_error=None):
         super(DirtyRow, self).__init__()
