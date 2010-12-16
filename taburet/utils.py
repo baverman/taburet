@@ -10,6 +10,14 @@ def normalize_date(date):
 
     return date
 
+def lenc(string, cp=[None]):
+    if not cp[0]:
+        import locale
+        cp[0] = locale.getlocale()[1]
+
+    return string.decode(cp[0])
+
+
 class SortedDict(dict):
     """
     A dictionary that keeps its keys in the order in which they're inserted.
