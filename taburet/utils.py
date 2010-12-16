@@ -118,3 +118,13 @@ class SortedDict(dict):
     def clear(self):
         super(SortedDict, self).clear()
         self.keyOrder = []
+
+def start_file(filename):
+    import os
+    import os.path
+
+    if os.name == 'nt':
+        os.startfile(os.path.normpath(filename))
+    else:
+        import subprocess
+        subprocess.Popen(['/usr/bin/env', 'xdg-open', filename]).poll()

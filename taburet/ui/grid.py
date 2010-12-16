@@ -175,6 +175,7 @@ class Grid(gtk.Table):
         w.vrow = r
         w.column = c
         w.connect('focus', self.on_focus)
+        w.connect('activate', self.on_activate)
         return w
 
     def on_after_realize(self, table):
@@ -385,5 +386,11 @@ class Grid(gtk.Table):
             self.current_row = widget.row
         else:
             self.current_row = None
+
+    def on_activate(self, widget):
+        if widget.column is self.columns[-1]:
+            self.child_focus(gtk.DIR_DOWN)
+        else:
+            self.child_focus(gtk.DIR_RIGHT)
 
 gobject.type_register(Grid)
