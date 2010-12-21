@@ -69,7 +69,7 @@ class Completion(object):
 
         self.tree = gtk.TreeView()
         self.tree.set_headers_visible(False)
-        self.tree.set_hover_selection(True)
+        #self.tree.set_hover_selection(True)
         self.tree.append_column(gtk.TreeViewColumn())
 
         self.tree_selection = self.tree.get_selection()
@@ -168,12 +168,14 @@ class Completion(object):
         model, iter = self.tree_selection.get_selected()
         if not iter:
             self.tree_selection.select_path((0, ))
+            self.tree.scroll_to_cell((0, ))
         else:
             path = list(model.get_path(iter))
             path[0] += 1 if is_next else -1
-
+            path = tuple(path)
             if path[0] >= 0 and path[0] < len(model):
-                self.tree_selection.select_path(tuple(path))
+                self.tree_selection.select_path(path)
+                self.tree.scroll_to_cell(path)
 
     def on_selection_changed(self, selection):
         if not self.block_selection and self.entry:

@@ -6,6 +6,7 @@ import gobject
 import glib
 
 from . import idle, guard, guarded_by, debug
+from .completion import make_simple_completion
 
 class BadValueException(Exception): pass
 
@@ -103,24 +104,12 @@ def match_func(completion, key, iter):
 class AutocompleteColumn(GridColumn):
     def __init__(self, name, choices, **kwargs):
         GridColumn.__init__(self, name, **kwargs)
-        self.model = gtk.ListStore(str)
-
-        for v in choices:
-            self.model.append((str(v),))
+        self.choices = choices
+        self.completion = make_simple_completion(choices)
 
     def create_widget(self, *args):
         w = super(AutocompleteColumn, self).create_widget(*args)
-
-        completion = gtk.EntryCompletion()
-        completion.set_model(self.model)
-        completion.set_text_column(0)
-        completion.set_match_func(match_func)
-        completion.set_inline_completion(True)
-        completion.set_inline_selection(True)
-        completion.set_popup_set_width(False)
-
-        w.set_completion(completion)
-
+        self.completion.attach_to_entry(w)
         return w
 
 
