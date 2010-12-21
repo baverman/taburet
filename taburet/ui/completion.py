@@ -22,11 +22,45 @@ def entry_changed(entry, completion_ref):
         if entry is completion.entry:
             completion.hide()
 
+def default_fill_func(model, iter):
+    pass
+
+def defult_select_func(entry, model, iter):
+    entry.set_text(model.get_value(iter, 0))
+    entry.set_position(-1)
+
+def make_simple_completion(choices):
+    def fill(model, key):
+        added = {}
+        if not key:
+            return
+
+        key = unicode(key, 'utf-8').lower()
+
+        for c in choices:
+            if c not in added and ( key == '*' or c.lower().startswith(key) ):
+                added[c] = True
+                model.append((c, ))
+
+        for c in choices:
+            if c not in added and ( key == '*' or key in c.lower() ):
+                model.append((c, ))
+
+    model = gtk.ListStore(str)
+    completion = Completion(model)
+    completion.on_fill = fill
+    column = completion.column
+    cell = gtk.CellRendererText()
+    column.pack_start(cell)
+    column.set_attributes(cell, text=0)
+
+    return completion
+
 
 class Completion(object):
-    def __init__(self, model, on_fill, on_select):
-        self.on_fill = on_fill
-        self.on_select = on_select
+    def __init__(self, model):
+        self.on_fill = default_fill_func
+        self.on_select = defult_select_func
 
         self.model = model
 
@@ -149,8 +183,7 @@ class Completion(object):
         model, iter = self.tree_selection.get_selected()
         if iter:
             self.entry.handler_block(self.entry.completion_changed_hid)
-            self.entry.set_text(self.on_select(model, iter))
-            self.entry.set_position(-1)
+            self.on_select(self.entry, model, iter)
             self.entry.handler_unblock(self.entry.completion_changed_hid)
             return True
 
