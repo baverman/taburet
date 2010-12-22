@@ -25,7 +25,7 @@ def entry_changed(entry, completion_ref):
 def default_fill_func(model, iter):
     pass
 
-def defult_select_func(entry, model, iter):
+def defult_select_func(entry, model, iter, final):
     entry.set_text(model.get_value(iter, 0))
     entry.set_position(-1)
 
@@ -179,20 +179,20 @@ class Completion(object):
 
     def on_selection_changed(self, selection):
         if not self.block_selection and self.entry:
-            self.update_entry_value_by_selection()
+            self.update_entry_value_by_selection(False)
 
-    def update_entry_value_by_selection(self):
+    def update_entry_value_by_selection(self, final):
         model, iter = self.tree_selection.get_selected()
         if iter:
             self.entry.handler_block(self.entry.completion_changed_hid)
-            self.on_select(self.entry, model, iter)
+            self.on_select(self.entry, model, iter, final)
             self.entry.handler_unblock(self.entry.completion_changed_hid)
             return True
 
         return False
 
     def activate_selection(self):
-        self.update_entry_value_by_selection()
+        self.update_entry_value_by_selection(True)
         entry = self.entry
         self.hide()
         entry.activate()
