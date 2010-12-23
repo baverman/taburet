@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import time
 import gtk
 import gobject
@@ -236,7 +235,11 @@ class Grid(gtk.Table):
         return result
 
     def remove_partial_row_visibility(self):
-        _, _, w, maxy, _ = self.window.get_geometry()
+        if not self.window:
+            return
+
+        _, _, w, h, _ = self.window.get_geometry()
+        maxy = self.allocation.height
 
         height = self.get_header_height()
         for r in range(self.visible_rows_count):
@@ -244,7 +247,7 @@ class Grid(gtk.Table):
             row_height = max(w.size_request()[1] for w in self.grid[r].values())
             height += row_height
 
-        self.window.resize(w, height)
+        self.window.resize(w, h + height - maxy)
 
     def do_set_scroll_adjustments(self, h_adjustment, v_adjustment):
         #h_adjustment.connect("value-changed", self._scroll_value_changed)
@@ -269,7 +272,7 @@ class Grid(gtk.Table):
             w.grab_focus()
 
     def fill_area_with_widgets(self):
-        _, _, _, maxy, _ = self.window.get_geometry()
+        maxy = self.allocation.height
 
         self.visible_rows_count = 0
 
