@@ -18,6 +18,9 @@ class GridColumn(object):
         self.default = default
         self.align = align
 
+    def get_attach_flags(self):
+        return gtk.EXPAND|gtk.SHRINK|gtk.FILL
+
     def create_widget(self, dirty_row):
         e = gtk.Entry()
 
@@ -190,7 +193,7 @@ class Grid(gtk.Table):
         for col, c in enumerate(self.columns):
             h = self.headers[col] = c.get_title_widget()
             self.attach(h, col, col + 1, 0, 1,
-                xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
+                xoptions=c.get_attach_flags(), yoptions=0)
 
         self.visible_rows_count = 0
 
@@ -296,7 +299,7 @@ class Grid(gtk.Table):
                     w.first = True
                 self.grid.setdefault(row, {})[col] = w
                 self.attach(w, col, col + 1, row+1, row + 2,
-                    xoptions=gtk.EXPAND|gtk.SHRINK|gtk.FILL, yoptions=0)
+                    xoptions=c.get_attach_flags(), yoptions=0)
 
             height += max(w.size_request()[1] for w in self.grid[row].values())
             height += self.get_row_spacing(row)
