@@ -1,5 +1,6 @@
 from os.path import join, dirname
 import functools
+from datetime import datetime
 
 import gtk
 import gobject
@@ -73,6 +74,30 @@ def guarded_by(name, result=None):
         return inner
 
     return decorator
+
+def create_calendar_dialog(title=None, parent=None, flags=gtk.DIALOG_MODAL,
+        buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_APPLY, gtk.RESPONSE_APPLY),
+        date=None):
+
+    dlg = gtk.Dialog(title, parent, flags, buttons)
+    cal = gtk.Calendar()
+    dlg.vbox.pack_start(cal, False, False)
+    cal.show()
+
+    def set_date(date):
+        cal.props.year = date.year
+        cal.props.month = date.month - 1
+        cal.props.day = date.day
+
+    def get_date():
+        return datetime(cal.props.year, cal.props.month + 1, cal.props.day)
+
+    dlg.set_date = set_date
+    dlg.get_date = get_date
+
+    dlg.set_date(date or datetime.now())
+
+    return dlg
 
 class CommonApp(object):
     def gtk_main_quit(self, widget):
