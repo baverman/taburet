@@ -431,4 +431,8 @@ class Grid(gtk.Table):
         else:
             self.child_focus(gtk.DIR_RIGHT)
 
+    def refresh(self):
+        fr = max(min(self.from_row, len(self.model) - 1), 0)
+        self.populate(fr)
+
 gobject.type_register(Grid)
