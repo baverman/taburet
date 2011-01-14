@@ -13,6 +13,11 @@ def save(book, filename):
         xls_sheet = xls_book.add_sheet(myunicode(sheet.name))
         fill_worksheet(sheet, xls_sheet)
 
+        xls_sheet.header_str = u''
+        xls_sheet.footer_str = u''
+        xls_sheet.print_centered_horz = False
+        xls_sheet.print_centered_vert = False
+
     xls_book.save(filename)
 
 def fill_worksheet(sheet, xls_sheet):
