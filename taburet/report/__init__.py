@@ -1,6 +1,27 @@
 from pyExcelerator import XFStyle as Style
 from pyExcelerator import Formatting
-import numbers
+
+class MyFont(Formatting.Font):
+    def __hash__(self):
+        return self.height ^ self.italic ^ self.struck_out ^ self.outline ^ self.shadow \
+            ^ self.colour_index ^ self.bold ^ self._weight ^ self.escapement ^ self.underline \
+            ^ self.family ^ self.charset
+
+    def __eq__(self, obj):
+        return all((
+            self.height == obj.height,
+            self.italic == obj.italic,
+            self.struck_out == obj.struck_out,
+            self.outline == obj.outline,
+            self.shadow == obj.shadow,
+            self.colour_index == obj.colour_index,
+            self.bold == obj.bold,
+            self._weight == obj._weight,
+            self.escapement == obj.escapement,
+            self.underline == obj.underline,
+            self.family == obj.family,
+            self.charset == obj.charset,
+            self.name == obj.name))
 
 def setprop(func):
     return property(fset=func)
@@ -69,6 +90,7 @@ class Cell(object):
         self.column = column
         self.value = None
         self._style = Style()
+        self._style.font = MyFont()
 
         if row > sheet.maxrow:
             sheet.maxrow = row
