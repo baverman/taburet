@@ -3,6 +3,8 @@ import weakref
 import gtk
 from gtk.keysyms import Escape, Up, Down, Return, KP_Up, KP_Enter, KP_Down
 
+from contextlib import contextmanager
+
 def entry_changed(entry, completion_ref):
     completion = completion_ref()
 
@@ -217,3 +219,11 @@ class Completion(object):
     def on_button_event(self, popup, event):
         self.hide()
         return True
+
+    @contextmanager
+    def block(self, entry):
+        entry.handler_block_by_func(entry_changed)
+        try:
+            yield
+        finally:
+            entry.handler_unblock_by_func(entry_changed)

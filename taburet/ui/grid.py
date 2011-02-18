@@ -47,6 +47,9 @@ class GridColumn(object):
 
     @guard('changing')
     def set_dirty_value(self, entry, row):
+        self._set_dirty_value(entry, row)
+
+    def _set_dirty_value(self, entry, row):
         entry.set_text(row[self.name])
 
     def update_row_value(self, dirty_row, row):
