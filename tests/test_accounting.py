@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from couchdbkit import MultipleResultsFound
-
 from datetime import datetime
 
 from taburet import PackageManager
@@ -8,7 +6,10 @@ from taburet.test import TestServer
 from taburet.accounts import AccountsPlan
 from taburet.transactions import month_report
 
+
 def pytest_funcarg__plan(request):
+    import sys
+    print sys.path
     s = TestServer()
     db1 = s.get_db('test_accounts')
     db2 = s.get_db('test_transactions')

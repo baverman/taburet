@@ -1,42 +1,28 @@
-import os.path
-from couchdbkit import FileSystemDocsLoader, ResourceConflict, Document
+from pymongo.errors import DuplicateKeyError
 
-def max_num_for(db, prefix):
-    result = db.view('counter/max_value', key=prefix).one()
-    
-    if result is None:
+def last_id_for(coll):
+    result = coll.find({}, {'_id':1}).sort('_id', -1).limit(1)
+
+    if result.count():
+        return result[0]['_id']
+    else:
         return 0
-    else:
-        return result['value']
 
-def get_new_id(db, prefix):
-    return "%s-%d" % (prefix, max_num_for(db, prefix) + 1)
+def get_new_id(coll):
+    return last_id_for(coll) + 1
 
-def save_doc_with_autoincremented_id(doc, db, prefix):
-    if '_rev' in doc:
-        db.save_doc(doc)
+def save_doc_with_autoincremented_id(coll, doc, before_insert=None):
+    if '_id' in doc:
+        coll.save(doc)
     else:
-        if '_id' not in doc:
-            doc['_id'] = get_new_id(db, prefix) 
-        
         while True:
+            doc['_id'] = get_new_id(coll)
+
+            if before_insert:
+                before_insert()
+
             try:
-                db.save_doc(doc)
+                coll.insert(doc, safe=True)
                 break
-            except ResourceConflict:
-                doc['_id'] = get_new_id(db, prefix)
-                
-def save_model_with_autoincremented_id(doc, prefix):
-    db = doc.get_db()
-    if '_rev' in doc:
-        Document.save(doc)
-    else:
-        if '_id' not in doc:
-            doc._id = get_new_id(db, prefix) 
-        
-        while True:
-            try:
-                Document.save(doc)
-                break
-            except ResourceConflict:
-                doc._id = get_new_id(db, prefix)
+            except DuplicateKeyError:
+                pass

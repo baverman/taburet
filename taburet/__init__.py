@@ -1,5 +1,4 @@
 import sys, os.path
-from couchdbkit.designer.fs import document
 
 def get_package(package):
     if isinstance(package, basestring):

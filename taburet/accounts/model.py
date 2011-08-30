@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from couchdbkit import Document, ListProperty, StringProperty
 from taburet.counter import save_model_with_autoincremented_id
 from taburet.transactions import balance, report, transactions, Transaction
 
-class Account(Document):
-    name = StringProperty()
-    desc = StringProperty(default='')
-    parents = ListProperty()
+class Account(object):
+    def __init__(self, data):
+        self.data = data
 
     def balance(self, date_from=None, date_to=None):
         return balance(self._id, date_from, date_to)
@@ -36,7 +34,7 @@ class Account(Document):
 
     @property
     def id(self):
-        return self._id
+        return self.data._id
 
 def accounts_walk(accounts, only_leaf=False):
     def get_accounts(parent, level):

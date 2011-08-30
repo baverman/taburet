@@ -1,76 +1,64 @@
 # -*- coding: utf-8 -*-
-from couchdbkit import Document, StringProperty
+from pymongo import Connection
 
-from taburet.test import TestServer
-from taburet import PackageManager
-from taburet.counter import max_num_for, \
-    save_doc_with_autoincremented_id, save_model_with_autoincremented_id
-
-import taburet.counter
+from taburet.counter import last_id_for, save_doc_with_autoincremented_id
 
 def pytest_funcarg__db(request):
-    s = TestServer()
-
-    db = s.get_db('test')
-    PackageManager().sync_package(db, taburet.counter)
-
+    db = Connection().test
+    db.collection1.drop()
+    db.collection2.drop()
     return db
 
 def test_counter_must_return_zero_for_nonexisting_keys(db):
-    assert max_num_for(db, 'fake_prefix') == 0
+    assert last_id_for(db.some_collection1) == 0
 
 def test_counter_must_return_max_value(db):
-    db['aaa-1'] = {}
-    db['aaa-2'] = {}
-    db['aaa-bbb'] = {}
-    db['vvv-50'] = {}
+    c1 = db.collection1
+    c2 = db.collection2
 
-    assert max_num_for(db, 'aaa') == 2
-    assert max_num_for(db, 'vvv') == 50
+    c1.insert({'_id':1})
+    c1.insert({'_id':2})
+
+    c2.insert({'_id':50})
+
+    assert last_id_for(c1) == 2
+    assert last_id_for(c2) == 50
 
 def test_counter_must_return_changed_value_after_document_adding(db):
-    db['aaa-1'] = {}
-    assert max_num_for(db, 'aaa') == 1
+    c = db.collection1
 
-    db['aaa-100'] = {}
-    assert max_num_for(db, 'aaa') == 100
+    c.insert({'_id':1})
+    assert last_id_for(c) == 1
+
+    c.insert({'_id':100})
+    assert last_id_for(c) == 100
 
 def test_auto_increment_must_not_change_id_of_existing_documents(db):
-    db['wow-20'] = {}
-    doc = db['wow-20']
-    doc['field'] = 'value'
-    save_doc_with_autoincremented_id(doc, db, 'wow')
+    c = db.collection1
 
-    assert db['wow-20']['field'] == 'value'
-    assert 'wow-21' not in db
+    c.insert({'_id':20})
+    doc = c.find_one({'_id':20})
+    doc['field'] = 'value'
+    save_doc_with_autoincremented_id(c, doc)
+
+    assert c.find_one({'_id':20})['field'] == 'value'
+    assert not c.find({'_id':21}).count()
 
 def test_auto_increment_must_increment_id_of_new_documents(db):
-    db['wow-20'] = {}
-    save_doc_with_autoincremented_id({'field':'value'}, db, 'wow')
+    c = db.collection1
 
-    assert db['wow-21']['field'] == 'value'
+    c.insert({'_id':20})
 
-def test_auto_increment_must_resolve_conflicts(db):
-    db['aaa-1'] = {}
+    save_doc_with_autoincremented_id(c, {'field':'value'})
+    assert c.find_one({'_id':21})['field'] == 'value'
 
-    save_doc_with_autoincremented_id({'_id':'aaa-1', 'field':'value'}, db, 'aaa')
-    assert db['aaa-2']['field'] == 'value'
+def test_auto_increment_on_concurent_document_saves(db):
+    c = db.collection1
 
-def test_save_model_document(db):
+    c.insert({'_id':20})
 
-    class Model(Document):
-        field = StringProperty()
+    def insert():
+        c.save({'_id':21})
 
-    Model.set_db(db)
-
-    doc = Model()
-    save_model_with_autoincremented_id(doc, 'aaa')
-    assert doc._id == 'aaa-1'
-
-    doc = Model()
-    doc._id = 'aaa-1'
-    doc.field = 'value'
-    save_model_with_autoincremented_id(doc, 'aaa')
-
-    doc = Model.get('aaa-2')
-    assert doc.field == 'value'
+    save_doc_with_autoincremented_id(c, {'field':'value'}, insert)
+    assert c.find_one({'_id':22})['field'] == 'value'
