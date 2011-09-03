@@ -111,21 +111,24 @@ def balances(id_list):
         for r in Transaction.get_db().view('transactions/balance', keys=id_list, group=True))
 
 
-def report(id, date_from=None, date_to=None, group_by_day=True):
-    params = {'group':True, 'group_level':4}
-
-    params['startkey'] = [id]
-    params['endkey'] = [id, {}]
+def report(aid, date_from=None, date_to=None):
+    query = {'_id.acc': aid}
 
     if date_from:
-        params['startkey'] = get_date_key(id, date_from)
+        query.setdefault('_id.dt', {})['$gte'] = date_from
 
     if date_to:
-        params['endkey'] = get_date_key(id, date_to)
+        query.setdefault('_id.dt', {})['$lt'] = date_to
 
-    result = Transaction.view('transactions/exact_balance_for_account', **params).all()
+    result = Transaction.__collection__.balances.group(['_id.acc', '_id.dt'], query,
+        {'kredit':0L, 'debet':0L},
+        '''function(obj, prev) {
+              prev.kredit += obj.value.kredit
+              prev.debet += obj.value.debet
+        }'''
+    )
 
-    return ((r['key'][1:], Balance(**r['value'])) for r in result)
+    return ((r['_id.dt'], Balance(r['debet']/100.0, r['kredit']/100.0)) for r in result)
 
 def transactions(aid, date_from=None, date_to=None, income=False, outcome=False):
     query = {}
@@ -147,23 +150,7 @@ def transactions(aid, date_from=None, date_to=None, income=False, outcome=False)
 
     return Transaction.find(query)
 
-def all_transactions(id, date_from=None, date_to=None):
-    params = {'include_docs':True, 'reduce':False, 'descending':True}
-
-    params['startkey'] = [id, {}]
-    params['endkey'] = [id]
-
-    if date_from:
-        params['startkey'] = get_date_key(id, date_to)
-
-    if date_to:
-        params['endkey'] = get_date_key(id, date_from)
-
-    return Transaction.view('transactions/balance_for_account', **params)
-
-
-transactions_balances_map = Code("""
-function(){
+transactions_balances_map = Code("""function(){
     var obj = this
     obj.from_acc.forEach(function(acc) {
         var dt = new Date(obj.date.getTime())
@@ -182,11 +169,9 @@ function(){
         dt.setUTCMilliseconds(0)
         emit({acc:acc, dt:dt}, {kredit:0, debet:obj.amount});
     })
-}
-""")
+}""")
 
-transactions_balance_map = Code("""
-function(){
+transactions_balance_map = Code("""function(){
     var obj = this
     obj.from_acc.forEach(function(acc) {
         emit(acc, {kredit:obj.amount, debet:0});
@@ -195,16 +180,13 @@ function(){
     obj.to_acc.forEach(function(acc) {
         emit(acc, {kredit:0, debet:obj.amount});
     })
-}
-""")
+}""")
 
-transactions_reduce = Code("""
-function(key, values){
+transactions_reduce = Code("""function(key, values){
     var result = {kredit:0, debet:0}
     values.forEach(function(v) {
         result.kredit += v.kredit
         result.debet += v.debet
     })
     return result
-}
-""")
+}""")

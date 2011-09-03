@@ -175,11 +175,11 @@ def test_account_report(plan):
     plan.create_transaction(acc2, acc1, 200.0, datetime(2010, 5, 25)).save()
     plan.create_transaction(acc3, acc2, 300.0, datetime(2010, 7, 1)).save()
 
-    result = list(acc1.report(datetime(2010, 5, 1), datetime(2010, 5, 31)))
-    assert result[0][0] == [2010, 5, 22]
+    result = list(acc1.report(datetime(2010, 5, 1), datetime(2010, 6, 1)))
+    assert result[0][0] == datetime(2010, 5, 22)
     assert result[0][1].kredit == 100
 
-    assert result[1][0] == [2010, 5, 25]
+    assert result[1][0] == datetime(2010, 5, 25)
     assert result[1][1].debet == 200
 
 def test_month_report(plan):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from taburet.mongokit import Document, Field, wrap_collection
+from taburet.mongokit import Document, Field
 
 from taburet.counter import save_model_with_autoincremented_id
 from taburet.transactions import balance, report, transactions, Transaction
@@ -12,8 +12,8 @@ class Account(Document):
     def balance(self, date_from=None, date_to=None):
         return balance(self.id, date_from, date_to)
 
-    def report(self, date_from=None, date_to=None, group_by_day=True):
-        return report(self.id, date_from, date_to, group_by_day)
+    def report(self, date_from=None, date_to=None):
+        return report(self.id, date_from, date_to)
 
     def subaccounts(self):
         return Account.find({'parent':self.id}).list()
