@@ -127,26 +127,25 @@ def report(id, date_from=None, date_to=None, group_by_day=True):
 
     return ((r['key'][1:], Balance(**r['value'])) for r in result)
 
-def transactions(id, date_from=None, date_to=None, income=False, outcome=False):
-    params = {'include_docs':True}
-
-    type = 3
-    if income:
-        type = 1
-
-    if outcome:
-        type = 2
-
-    params['startkey'] = [type, id]
-    params['endkey'] = [type, id, {}]
+def transactions(aid, date_from=None, date_to=None, income=False, outcome=False):
+    query = {}
 
     if date_from:
-        params['startkey'] = [type] + get_date_key(id, date_from)
+        query.setdefault('date', {})['$gte'] = date_from
 
     if date_to:
-        params['endkey'] = [type] + get_date_key(id, date_to)
+        query.setdefault('date', {})['$lt'] = date_to
 
-    return Transaction.view('transactions/transactions', **params)
+    if income and not outcome:
+        query['to_acc'] = aid
+    elif outcome and not income:
+        query['from_acc'] = aid
+    else:
+        q = query['$or'] = []
+        q.append({'from_acc':aid})
+        q.append({'to_acc':aid})
+
+    return Transaction.find(query)
 
 def all_transactions(id, date_from=None, date_to=None):
     params = {'include_docs':True, 'reduce':False, 'descending':True}

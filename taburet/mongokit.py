@@ -157,6 +157,9 @@ class Cursor(object):
     def list(self):
         return list(iter(self))
 
+    def all(self):
+        return list(iter(self))
+
     def one(self):
         it = iter(self.cursor)
         doc = None

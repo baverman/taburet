@@ -153,17 +153,17 @@ def test_account_transaction_list(plan):
     result = acc3.transactions().all()
     assert len(result) == 1
 
-    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31)).one()
+    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 6, 1)).one()
     assert result.amount == 100
     assert result.date == datetime(2010, 5, 22, 10, 23, 40)
 
-    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31), income=True).one()
+    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 6, 1), income=True).one()
     assert result == None
 
-    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 5, 31), outcome=True).one()
+    result = acc1.transactions(datetime(2010, 5, 1), datetime(2010, 6, 1), outcome=True).one()
     assert result.amount == 100
 
-    result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 6, 30)).one()
+    result = acc1.transactions(datetime(2010, 6, 1), datetime(2010, 7, 1)).one()
     assert result.amount == 200
 
 def test_account_report(plan):

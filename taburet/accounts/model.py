@@ -19,7 +19,7 @@ class Account(Document):
         return Account.find({'parent':self.id}).list()
 
     def transactions(self, date_from=None, date_to=None, income=False, outcome=False):
-        return transactions(self._id, date_from, date_to, income, outcome)
+        return transactions(self.id, date_from, date_to, income, outcome)
 
     @property
     def account_path(self):
