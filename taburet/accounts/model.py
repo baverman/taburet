@@ -6,7 +6,7 @@ from taburet.transactions import balance, report, transactions, Transaction
 
 class Account(Document):
     name = Field('')
-    parents = Field([0])
+    parents = Field([])
     parent = Field(0)
 
     def balance(self, date_from=None, date_to=None):

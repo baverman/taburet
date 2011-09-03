@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import Code, SON
 
 from taburet.mongokit import Document, Field, Currency
+
+GROUP_FUNC = ({'kredit':0L, 'debet':0L},
+'''function(obj, prev) {
+      prev.kredit += obj.value.kredit
+      prev.debet += obj.value.debet
+   }''')
+
 
 class Transaction(Document):
     from_acc = Field([])
@@ -42,26 +49,30 @@ class Balance(object):
 def month_report(account_id_list, dt=None):
     dt = dt or datetime.now()
 
-    year, month = dt.year, dt.month
-    view_name = 'month_report_%s' % dt.strftime('%Y%m')
-    design_id = '_design/' + view_name
+    dt_before = datetime(dt.year, dt.month, 1)
+    dt_after = (dt_before + timedelta(days=32)).replace(day=1)
 
-    if not Transaction.get_db().doc_exist(design_id):
-        design_doc = {'_id':design_id, 'language':'erlang', 'views':{'get':{
-            'map': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'map.erl')).read().decode('utf8') % {'year':year, 'month':month},
-            'reduce': open(os.path.join(os.path.split(__file__)[0], 'month_report', 'reduce.erl')).read().decode('utf8'),
-        }}}
-        try:
-            Transaction.get_db().save_doc(design_doc)
-        except ResourceConflict:
-            pass
+    rbefore = Transaction.__collection__.balances.group(['_id.acc'],
+        {'_id.acc':{'$in':account_id_list}, '_id.dt':{'$lt':dt_before}}, *GROUP_FUNC)
 
-    result = Transaction.get_db().view(view_name+'/get', keys=account_id_list, group=True)
-    result = dict((r['key'], r['value']) for r in result)
+    rafter = Transaction.__collection__.balances.group(['_id.acc'],
+        {'_id.acc':{'$in':account_id_list}, '_id.dt':{'$gte':dt_before, '$lt':dt_after}},
+        *GROUP_FUNC)
 
-    for id in account_id_list:
-        if id not in result:
-            result[id] = {'kredit': 0, 'debet': 0, 'after': 0, 'before': 0}
+    result = {}
+    for aid in account_id_list:
+        result[aid] = {'kredit': 0, 'debet': 0, 'after': 0, 'before': 0}
+
+    for r in rbefore:
+        rr = result[int(r['_id.acc'])]
+        rr['before'] = rr['after'] = (r['debet'] - r['kredit'])/100.0
+
+    for r in rafter:
+        rr = result[int(r['_id.acc'])]
+        k, d = r['kredit']/100.0, r['debet']/100.0
+        rr['debet'] = d
+        rr['kredit'] = k
+        rr['after'] = rr['before'] + d - k
 
     return result
 
@@ -84,13 +95,7 @@ def balance(aid, date_from=None, date_to=None):
         if date_to:
             query['_id.dt']['$lt'] = date_to
 
-        result = Transaction.__collection__.balances.group(['_id.acc'], query,
-            {'kredit':0L, 'debet':0L},
-            '''function(obj, prev) {
-                  prev.kredit += obj.value.kredit
-                  prev.debet += obj.value.debet
-               }'''
-        )
+        result = Transaction.__collection__.balances.group(['_id.acc'], query, *GROUP_FUNC)
 
         if result:
             result = result[0]
@@ -121,12 +126,7 @@ def report(aid, date_from=None, date_to=None):
         query.setdefault('_id.dt', {})['$lt'] = date_to
 
     result = Transaction.__collection__.balances.group(['_id.acc', '_id.dt'], query,
-        {'kredit':0L, 'debet':0L},
-        '''function(obj, prev) {
-              prev.kredit += obj.value.kredit
-              prev.debet += obj.value.debet
-        }'''
-    )
+        *GROUP_FUNC)
 
     return ((r['_id.dt'], Balance(r['debet']/100.0, r['kredit']/100.0)) for r in result)
 
