@@ -1,23 +1,20 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 
+from pymongo import Connection
+
 from taburet import PackageManager
-from taburet.test import TestServer
-from taburet.accounts import AccountsPlan
+from taburet.accounts import AccountsPlan, Account
 from taburet.transactions import month_report
 
-
 def pytest_funcarg__plan(request):
-    import sys
-    print sys.path
-    s = TestServer()
-    db1 = s.get_db('test_accounts')
-    db2 = s.get_db('test_transactions')
+    db = Connection().test
+    db.accounts.drop()
+    db.transactions.drop()
+    db.transactions.balances.drop()
+    db.transactions.balance.drop()
 
-    dbsetter = PackageManager()
-    dbsetter.set_db(db1, 'taburet.accounts')
-    dbsetter.set_db(db2, 'taburet.transactions')
-    dbsetter.sync_design_documents()
+    PackageManager(db).use('taburet.accounts')
 
     return AccountsPlan()
 
@@ -59,13 +56,13 @@ def test_billing_must_return_values_for_date_period(plan):
     plan.create_transaction(acc1, acc2, 300.0, datetime(2010, 5, 31)).save()
     plan.create_transaction(acc1, acc2, 100.0, datetime(2010, 6, 01)).save()
 
-    balance = acc2.balance(datetime(2010,5,1), datetime(2010,5,31))
+    balance = acc2.balance(datetime(2010,5,1), datetime(2010,6,1))
     assert balance.balance == 500
 
-    balance = acc1.balance(datetime(2010,6,1), datetime(2010,6,30))
+    balance = acc1.balance(datetime(2010,6,1), datetime(2010,7,1))
     assert balance.balance == -100
 
-    balance = acc2.balance(datetime(2010,5,1), datetime(2010,6,30))
+    balance = acc2.balance(datetime(2010,5,1), datetime(2010,7,1))
     assert balance.balance == 600
 
 def test_billing_must_return_zero_balance_for_period_without_transactions(plan):
@@ -74,7 +71,7 @@ def test_billing_must_return_zero_balance_for_period_without_transactions(plan):
 
     plan.create_transaction(acc1, acc2, 200.0, datetime(2010, 5, 20)).save()
 
-    balance = acc2.balance(datetime(2010,5,21), datetime(2010,5,21))
+    balance = acc2.balance(datetime(2010,5,21), datetime(2010,5,22))
     assert balance.balance == 0
 
 def test_account_must_be_able_to_return_subaccounts(plan):
@@ -124,7 +121,7 @@ def test_account_must_be_able_to_be_found_by_name(plan):
     try:
         plan.get_by_name(u'Счет1')
         assert False, 'MultipleResultsFound must be raised'
-    except MultipleResultsFound:
+    except Account.MultipleResultsFound:
         pass
 
 def test_account_transaction_list(plan):

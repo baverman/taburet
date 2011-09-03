@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from pymongo import Connection
 
-from taburet.counter import last_id_for, save_doc_with_autoincremented_id
+from taburet.mongokit import Document, Field
+from taburet.counter import last_id_for, save_doc_with_autoincremented_id, \
+    save_model_with_autoincremented_id
 
 def pytest_funcarg__db(request):
     db = Connection().test
@@ -62,3 +64,15 @@ def test_auto_increment_on_concurent_document_saves(db):
 
     save_doc_with_autoincremented_id(c, {'field':'value'}, insert)
     assert c.find_one({'_id':22})['field'] == 'value'
+
+def test_auto_increment_on_model(db):
+    class Doc(Document):
+        __collection__ = db.collection1
+
+    Doc(document={'_id':20}).save()
+
+    d = Doc()
+    dd = save_model_with_autoincremented_id(d)
+
+    assert dd is d
+    assert d.id == 21

@@ -1,44 +1,39 @@
 # -*- coding: utf-8 -*-
+from taburet.mongokit import Document, Field, wrap_collection
 
 from taburet.counter import save_model_with_autoincremented_id
 from taburet.transactions import balance, report, transactions, Transaction
 
-class Account(object):
-    def __init__(self, data):
-        self.data = data
+class Account(Document):
+    name = Field('')
+    parents = Field([0])
+    parent = Field(0)
 
     def balance(self, date_from=None, date_to=None):
-        return balance(self._id, date_from, date_to)
+        return balance(self.id, date_from, date_to)
 
     def report(self, date_from=None, date_to=None, group_by_day=True):
-        return report(self._id, date_from, date_to, group_by_day)
+        return report(self.id, date_from, date_to, group_by_day)
 
     def subaccounts(self):
-        return Account.view('accounts/accounts', key=self._id, include_docs=True).all()
+        return Account.find({'parent':self.id}).list()
 
     def transactions(self, date_from=None, date_to=None, income=False, outcome=False):
         return transactions(self._id, date_from, date_to, income, outcome)
 
     @property
     def account_path(self):
-        return self.parents + [self._id]
+        return self.parents + [self.id]
 
     def __repr__(self):
-        return "<Account: %s>" % self._id
-
-    def __eq__(self, ob):
-        if ob:
-            return self._id == ob._id
-        else:
-            return False
-
-    @property
-    def id(self):
-        return self.data._id
+        return "<Account: %s>" % self.id
 
 def accounts_walk(accounts, only_leaf=False):
     def get_accounts(parent, level):
-        subaccounts = sorted((r for r in accounts if (not parent and not r.parents) or (r.parents and parent == r.parents[-1])), key=lambda a:a.name)
+        subaccounts = sorted((r for r in accounts if (
+            not parent and not r.parents) or (r.parents and parent == r.parents[-1])),
+            key=lambda a:a.name)
+
         for acc in subaccounts:
             accs = list(get_accounts(acc.id, level + 1))
             if not accs or not only_leaf:
@@ -49,15 +44,11 @@ def accounts_walk(accounts, only_leaf=False):
     return get_accounts(None, 0)
 
 class AccountsPlan(object):
-    def __init__(self):
-        pass
-
     def add_account(self, name=None, parent=None):
         '''
         Добавляет счет в план
 
-        @param id: уникальный для базы id
-        @param title: расшифровка
+        @param name: расшифровка
         @param parent: счет, в который будет помещен создаваемый субсчет
         @return: Account
         '''
@@ -67,16 +58,15 @@ class AccountsPlan(object):
             account.name = name
 
         if parent:
-            account.parents = parent.parents + [parent._id]
+            account.parents = parent.parents + [parent.id]
+            account.parent = parent.id
 
-        save_model_with_autoincremented_id(account, 'acc')
-
-        return account
+        return save_model_with_autoincremented_id(account)
 
     def create_transaction(self, from_account, to_account, amount, date=None):
         tran = Transaction()
-        tran.from_acc = from_account.parents + [from_account._id]
-        tran.to_acc = to_account.parents + [to_account._id]
+        tran.from_acc = from_account.parents + [from_account.id]
+        tran.to_acc = to_account.parents + [to_account.id]
         tran.amount = amount
 
         if date:
@@ -85,13 +75,13 @@ class AccountsPlan(object):
         return tran
 
     def subaccounts(self):
-        return Account.view('accounts/accounts', key='ROOT_ACCOUNT', include_docs=True).all()
+        return Account.find({'parent':0}).list()
 
     def accounts(self):
-        return Account.view('doctype/get', key='Account', include_docs=True).all()
+        return Account.find().list()
 
     def get_by_name(self, name):
-        return Account.view('accounts/account_by_name', key=name, include_docs=True).one()
+        return Account.find({'name':name}).one()
 
     def balance_report(self, date_from, date_to):
         pass

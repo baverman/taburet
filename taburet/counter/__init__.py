@@ -13,7 +13,7 @@ def get_new_id(coll):
 
 def save_doc_with_autoincremented_id(coll, doc, before_insert=None):
     if '_id' in doc:
-        coll.save(doc)
+        return coll.save(doc, safe=True)
     else:
         while True:
             doc['_id'] = get_new_id(coll)
@@ -22,7 +22,15 @@ def save_doc_with_autoincremented_id(coll, doc, before_insert=None):
                 before_insert()
 
             try:
-                coll.insert(doc, safe=True)
+                return coll.insert(doc, safe=True)
                 break
             except DuplicateKeyError:
                 pass
+
+def save_model_with_autoincremented_id(model):
+    if '_id' in model:
+        model.save()
+    else:
+        model.id = save_doc_with_autoincremented_id(model.__class__.__collection__, model._data)
+
+    return model
