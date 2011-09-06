@@ -11,23 +11,32 @@ GROUP_FUNC = ({'kredit':0L, 'debet':0L},
    }''')
 
 
+def local_transaction_reducer(tid, revert_mp=1):
+    Transaction.__collection__.map_reduce(transactions_balance_map, transactions_reduce,
+        out=SON([("reduce", "%s.balance" % Transaction.__collection__.name)]),
+        query={'_id':tid}, scope={'revert_mp':revert_mp})
+
+    Transaction.__collection__.map_reduce(transactions_balances_map, transactions_reduce,
+        out=SON([("reduce", "%s.balances" % Transaction.__collection__.name)]),
+        query={'_id':tid}, scope={'revert_mp':revert_mp})
+
+
 class Transaction(Document):
     from_acc = Field([])
     to_acc = Field([])
     amount = Currency(0)
     date = Field(datetime.now)
 
+    transaction_reducer = staticmethod(local_transaction_reducer)
+
     def save(self, do_reduce=True):
+        if '_id' in self and do_reduce:
+            Transaction.transaction_reducer(self.id, -1)
+
         Document.save(self)
 
         if do_reduce:
-            Transaction.__collection__.map_reduce(transactions_balance_map, transactions_reduce,
-                out=SON([("reduce", "%s.balance" % Transaction.__collection__.name)]),
-                query={'_id':self.id})
-
-            Transaction.__collection__.map_reduce(transactions_balances_map, transactions_reduce,
-                out=SON([("reduce", "%s.balances" % Transaction.__collection__.name)]),
-                query={'_id':self.id})
+            Transaction.transaction_reducer(self.id)
 
         return self
 
@@ -158,7 +167,7 @@ transactions_balances_map = Code("""function(){
         dt.setUTCMinutes(0)
         dt.setUTCSeconds(0)
         dt.setUTCMilliseconds(0)
-        emit({acc:acc, dt:dt}, {kredit:obj.amount, debet:0});
+        emit({acc:acc, dt:dt}, {kredit:obj.amount * revert_mp, debet:0});
     })
 
     obj.to_acc.forEach(function(acc) {
@@ -167,18 +176,18 @@ transactions_balances_map = Code("""function(){
         dt.setUTCMinutes(0)
         dt.setUTCSeconds(0)
         dt.setUTCMilliseconds(0)
-        emit({acc:acc, dt:dt}, {kredit:0, debet:obj.amount});
+        emit({acc:acc, dt:dt}, {kredit:0, debet:obj.amount * revert_mp});
     })
 }""")
 
 transactions_balance_map = Code("""function(){
     var obj = this
     obj.from_acc.forEach(function(acc) {
-        emit(acc, {kredit:obj.amount, debet:0});
+        emit(acc, {kredit:obj.amount * revert_mp, debet:0});
     })
 
     obj.to_acc.forEach(function(acc) {
-        emit(acc, {kredit:0, debet:obj.amount});
+        emit(acc, {kredit:0, debet:obj.amount * revert_mp});
     })
 }""")
 

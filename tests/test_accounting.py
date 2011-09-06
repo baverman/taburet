@@ -31,7 +31,7 @@ def test_account_tree_and_billing_case(plan):
     konditer = plan.add_account(parent=zp)
     zavhoz = plan.add_account(parent=zp)
 
-    plan.create_transaction(bich, nal, 1000.0).save()
+    t = plan.create_transaction(bich, nal, 1000.0).save()
     plan.create_transaction(petrov, nal, 500.0).save()
     plan.create_transaction(petrov, beznal, 100.0).save()
 
@@ -44,6 +44,19 @@ def test_account_tree_and_billing_case(plan):
 
     assert kassa.balance().balance == 1100
     assert kassa.balance().debet == 1600
+    assert kassa.balance().kredit == 500
+
+    assert zp.balance().balance == 500
+
+    t.amount = 900
+    t.save()
+
+    assert zacs.balance().balance == -1500
+    assert bich.balance().balance == -900
+    assert petrov.balance().balance == -600
+
+    assert kassa.balance().balance == 1000
+    assert kassa.balance().debet == 1500
     assert kassa.balance().kredit == 500
 
     assert zp.balance().balance == 500
