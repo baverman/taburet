@@ -5,7 +5,7 @@ from pymongo import Connection
 
 from taburet import PackageManager
 from taburet.accounts import AccountsPlan, Account
-from taburet.transactions import month_report
+from taburet.transactions import month_report, Transaction
 
 def pytest_funcarg__plan(request):
     db = Connection().test
@@ -218,3 +218,29 @@ def test_month_report(plan):
     result = month_report((acc3.id,), datetime(2010, 7, 1))
     assert len(result) == 1
     assert result[acc3.id] == {'before':0, 'debet':0, 'kredit':300, 'after':-300}
+
+def test_billing_support_transaction_cancellation(plan):
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
+
+    t = plan.create_transaction(acc1, acc2, 50.0).save()
+    assert acc1.balance().balance == -50
+    assert acc2.balance().balance == 50
+
+    t.cancel('Bad')
+    assert acc1.balance().balance == 0
+    assert acc2.balance().balance == 0
+
+def test_billing_support_transaction_removing(plan):
+    acc1 = plan.add_account()
+    acc2 = plan.add_account()
+
+    t = plan.create_transaction(acc1, acc2, 50.0).save()
+    assert acc1.balance().balance == -50
+    assert acc2.balance().balance == 50
+
+    t.remove()
+    assert acc1.balance().balance == 0
+    assert acc2.balance().balance == 0
+
+    assert Transaction.get(t.id) is None

@@ -26,6 +26,8 @@ class Transaction(Document):
     to_acc = Field([])
     amount = Currency(0)
     date = Field(datetime.now)
+    canceled = Field(required=False)
+    cancel_desc = Field(required=False)
 
     transaction_reducer = staticmethod(local_transaction_reducer)
 
@@ -39,6 +41,21 @@ class Transaction(Document):
             Transaction.transaction_reducer(self.id)
 
         return self
+
+    def cancel(self, desc=None):
+        assert '_id' in self
+        Transaction.transaction_reducer(self.id, -1)
+
+        self.canceled = True
+        if desc:
+            self.cancel_desc = desc
+
+        Document.save(self)
+
+    def remove(self):
+        assert '_id' in self
+        Transaction.transaction_reducer(self.id, -1)
+        Document.remove(self)
 
     def __repr__(self):
         return "<%s -> %s: %f at %s>" % (str(self.from_acc), str(self.to_acc),

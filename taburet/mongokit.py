@@ -137,9 +137,17 @@ class Document(object):
         self.id = self.__class__.__collection__.save(self._data, safe=True)
         return self
 
+    def remove(self):
+        assert '_id' in self
+        self.__class__.__collection__.remove(self.id, safe=True)
+
     @classmethod
     def get(cls, doc_id):
-        return cls(_doc=cls.__collection__.find_one({'_id':doc_id}))
+        result = cls.__collection__.find_one({'_id':doc_id})
+        if not result:
+            return None
+
+        return cls(_doc=result)
 
     @classmethod
     def find(cls, *args, **kwargs):
@@ -172,4 +180,4 @@ class Cursor(object):
 
             return None
         else:
-            raise Document.MultipleResultsFound()
+            raise self.cls.MultipleResultsFound()
