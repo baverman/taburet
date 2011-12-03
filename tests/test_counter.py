@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
-from pymongo import Connection
-
-from taburet.mongokit import Document, Field
 from taburet.counter import last_id_for, save_doc_with_autoincremented_id, \
     save_model_with_autoincremented_id
 
 def pytest_funcarg__db(request):
-    db = Connection().test
-    db.collection1.drop()
-    db.collection2.drop()
     return db
 
 def test_counter_must_return_zero_for_nonexisting_keys(db):

@@ -9,7 +9,7 @@ setup(
 #    long_description = open('README.rst').read(),
     zip_safe   = False,
     packages = find_packages(),
-    install_requires = ['blinker', 'pyExcelerator', 'couchdbkit'],
+    install_requires = ['pyExcelerator'],
     include_package_data = True,
     url = 'http://github.com/baverman/taburet',
     classifiers = [

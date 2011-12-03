@@ -1,32 +1,73 @@
 # -*- coding: utf-8 -*-
-from taburet.mongokit import Document, Field
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm.session import object_session
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
-from taburet.counter import save_model_with_autoincremented_id
-from taburet.transactions import balance, report, transactions, Transaction
+from taburet.transactions import make_transaction, balance, transactions, day_report
 
-class Account(Document):
-    name = Field('')
-    parents = Field([])
-    parent = Field(0)
+Base = declarative_base()
+
+class Account(Base):
+    __tablename__ = 'accounts'
+
+    NoResultFound = NoResultFound
+    MultipleResultsFound = MultipleResultsFound
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50))
+    parent = Column(Integer)
+    parents = Column(String(100))
+    desc = Column(String(500))
+
+    def __init__(self, name, parent=None, desc=None):
+        self.name = name
+        if parent:
+            assert parent.id, 'Parent obj must be persistent'
+            self.parents = parent.account_path
+            self.parent = parent.id
+        else:
+            self.parents = ''
+            self.parent = None
+
+        self.desc = desc
+
+    @property
+    def tid(self):
+        assert self.id
+        return 'account:%s' % self.id
 
     def balance(self, date_from=None, date_to=None):
-        return balance(self.id, date_from, date_to)
+        return balance(object_session(self), self.tid, date_from, date_to)
 
     def report(self, date_from=None, date_to=None):
-        return report(self.id, date_from, date_to)
+        return day_report(object_session(self), self.tid, date_from, date_to)
 
     def subaccounts(self):
-        return Account.find({'parent':self.id}).list()
+        return object_session(self).query(Account).filter_by(parents=self.account_path).all()
 
     def transactions(self, date_from=None, date_to=None, income=False, outcome=False):
-        return transactions(self.id, date_from, date_to, income, outcome)
+        return transactions(object_session(self), self.tid, date_from, date_to, income, outcome)
 
     @property
     def account_path(self):
-        return self.parents + [self.id]
+        if self.parents:
+            return self.parents + ':' + str(self.id)
+        else:
+            return str(self.id)
+
+    @property
+    def parent_accounts(self):
+        if self.parents:
+            session = object_session(self)
+            ids = map(int, self.parents.split(':'))
+            return session.query(Account).filter(Account.id.in_(ids)).all()
+        else:
+            return []
 
     def __repr__(self):
         return "<Account: %s>" % self.id
+
 
 def accounts_walk(accounts, only_leaf=False):
     def get_accounts(parent, level):
@@ -43,45 +84,28 @@ def accounts_walk(accounts, only_leaf=False):
 
     return get_accounts(None, 0)
 
-class AccountsPlan(object):
-    def add_account(self, name=None, parent=None):
-        '''
-        Добавляет счет в план
+def create_transaction(from_account, to_account, amount, date=None):
+    from_accs = ['account:' + r for r in from_account.account_path.split(':')]
+    to_accs = ['account:' + r for r in to_account.account_path.split(':')]
+    return make_transaction(from_accs, to_accs, amount, date)
 
-        @param name: расшифровка
-        @param parent: счет, в который будет помещен создаваемый субсчет
-        @return: Account
-        '''
-        account = Account()
+def get_toplevel_accounts(session):
+    return session.query(Account).filter_by(parent=None).all()
 
-        if name:
-            account.name = name
+def get_all_accounts(session):
+    return session.query(Account).all()
 
-        if parent:
-            account.parents = parent.parents + [parent.id]
-            account.parent = parent.id
+def get_account_by_name(session, name):
+    try:
+        return session.query(Account).filter_by(name=name).one()
+    except NoResultFound:
+        return None
 
-        return save_model_with_autoincremented_id(account)
+def balance_report(session, date_from, date_to):
+    pass
 
-    def create_transaction(self, from_account, to_account, amount, date=None):
-        tran = Transaction()
-        tran.from_acc = from_account.parents + [from_account.id]
-        tran.to_acc = to_account.parents + [to_account.id]
-        tran.amount = amount
-
-        if date:
-            tran.date = date
-
-        return tran
-
-    def subaccounts(self):
-        return Account.find({'parent':0}).list()
-
-    def accounts(self):
-        return Account.find().list()
-
-    def get_by_name(self, name):
-        return Account.find({'name':name}).one()
-
-    def balance_report(self, date_from, date_to):
-        pass
+def create_account(session, name=None, parent=None, desc=None):
+    acc = Account(name, parent, desc)
+    session.add(acc)
+    session.flush()
+    return acc

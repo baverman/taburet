@@ -18,9 +18,28 @@ def iter_packages(packages):
 
 
 class PackageManager(object):
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, session):
+        self.session = session
         self.processed_uses = {}
+
+        self.on_sync_cb = []
+        self.on_drop_cb = []
+
+    def on_sync(self, func):
+        self.on_sync_cb.append(func)
+        return func
+
+    def on_drop(self, func):
+        self.on_drop_cb.append(func)
+        return func
+
+    def sync(self):
+        for f in self.on_sync_cb:
+            f(self.session.get_bind())
+
+    def drop(self):
+        for f in self.on_drop_cb:
+            f(self.session.get_bind())
 
     def use(self, *packages):
         for package in iter_packages(packages):

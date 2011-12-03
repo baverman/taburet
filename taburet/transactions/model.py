@@ -1,66 +1,72 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
-from bson import Code, SON
+from itertools import groupby
 
-from taburet.mongokit import Document, Field, Currency
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean, ForeignKey, func
+from sqlalchemy.orm import relationship, object_session
 
-GROUP_FUNC = ({'kredit':0L, 'debet':0L},
-'''function(obj, prev) {
-      prev.kredit += obj.value.kredit
-      prev.debet += obj.value.debet
-   }''')
+Base = declarative_base()
 
+class Transaction(Base):
+    __tablename__ = 'transactions'
 
-def local_transaction_reducer(tid, revert_mp=1):
-    Transaction.__collection__.map_reduce(transactions_balance_map, transactions_reduce,
-        out=SON([("reduce", "%s.balance" % Transaction.__collection__.name)]),
-        query={'_id':tid}, scope={'revert_mp':revert_mp})
-
-    Transaction.__collection__.map_reduce(transactions_balances_map, transactions_reduce,
-        out=SON([("reduce", "%s.balances" % Transaction.__collection__.name)]),
-        query={'_id':tid}, scope={'revert_mp':revert_mp})
-
-
-class Transaction(Document):
-    from_acc = Field([])
-    to_acc = Field([])
-    amount = Currency(0)
-    date = Field(datetime.now)
-    canceled = Field(required=False)
-    cancel_desc = Field(required=False)
-
-    transaction_reducer = staticmethod(local_transaction_reducer)
-
-    def save(self, do_reduce=True):
-        if '_id' in self and do_reduce:
-            Transaction.transaction_reducer(self.id, -1)
-
-        Document.save(self)
-
-        if do_reduce:
-            Transaction.transaction_reducer(self.id)
-
-        return self
+    id = Column(Integer, primary_key=True)
+    amount = Column(Numeric(18, 2))
+    date = Column(DateTime)
+    canceled = Column(Boolean)
+    cancel_desc = Column(String(500))
+    accounts = relationship('Destination', cascade="all, delete, delete-orphan")
 
     def cancel(self, desc=None):
-        assert '_id' in self
-        Transaction.transaction_reducer(self.id, -1)
-
         self.canceled = True
-        if desc:
-            self.cancel_desc = desc
-
-        Document.save(self)
-
-    def remove(self):
-        assert '_id' in self
-        Transaction.transaction_reducer(self.id, -1)
-        Document.remove(self)
+        self.desc = desc
 
     def __repr__(self):
-        return "<%s -> %s: %f at %s>" % (str(self.from_acc), str(self.to_acc),
+        return "<%s -> %s: %f at %s>" % (repr(self.from_accs), repr(self.to_accs),
             self.amount, self.date)
 
+    @property
+    def from_accs(self):
+        accs = [r for r in self.accounts if not r.direction]
+        return [r.account for r in sorted(accs, key=lambda r: r.is_end)]
+
+    @property
+    def to_accs(self):
+        accs = [r for r in self.accounts if r.direction]
+        return [r.account for r in sorted(accs, key=lambda r: r.is_end)]
+
+
+class Destination(Base):
+    __tablename__ = 'destinations'
+
+    tid = Column(Integer, ForeignKey('transactions.id'), primary_key=True)
+    direction = Column(Boolean)
+    account = Column(String(20), primary_key=True)
+    is_end = Column(Boolean)
+
+    def __repr__(self):
+        return "[%s %s%s]" % (['<-', '->'][self.direction], self.account, '!' if self.is_end else '')
+
+def make_transaction(acc_from, acc_to, amount, date=None):
+    date = date or datetime.now()
+    t = Transaction()
+    t.amount = amount
+    t.canceled = False
+    t.date = date
+
+    accounts = []
+
+    for a in acc_from[:-1]:
+        accounts.append(Destination(direction=False, account=a, is_end=False))
+    accounts.append(Destination(direction=False, account=acc_from[-1], is_end=True))
+
+    for a in acc_to[:-1]:
+        accounts.append(Destination(direction=True, account=a, is_end=False))
+    accounts.append(Destination(direction=True, account=acc_to[-1], is_end=True))
+
+    t.accounts = accounts
+    return t
 
 class Balance(object):
     def __init__(self, debet, kredit):
@@ -72,64 +78,84 @@ class Balance(object):
         return "<+: %f  -: %f  =: %f>" % (self.debet, self.kredit, self.balance)
 
 
-def month_report(account_id_list, dt=None):
+def month_report(session, account_id_list, dt=None):
     dt = dt or datetime.now()
 
     dt_before = datetime(dt.year, dt.month, 1)
     dt_after = (dt_before + timedelta(days=32)).replace(day=1)
 
-    rbefore = Transaction.__collection__.balances.group(['_id.acc'],
-        {'_id.acc':{'$in':account_id_list}, '_id.dt':{'$lt':dt_before}}, *GROUP_FUNC)
+    rbefore = session.query(Destination.account, Destination.direction, func.sum(Transaction.amount))\
+        .join(Transaction.accounts)\
+        .filter(Destination.account.in_(account_id_list))\
+        .filter(Transaction.canceled == False)\
+        .filter(Transaction.date < dt_before)\
+        .group_by(Destination.account, Destination.direction)
 
-    rafter = Transaction.__collection__.balances.group(['_id.acc'],
-        {'_id.acc':{'$in':account_id_list}, '_id.dt':{'$gte':dt_before, '$lt':dt_after}},
-        *GROUP_FUNC)
+    rafter = session.query(Destination.account, Destination.direction, func.sum(Transaction.amount))\
+        .join(Transaction.accounts)\
+        .filter(Transaction.canceled == False)\
+        .filter(Destination.account.in_(account_id_list))\
+        .filter(Transaction.date >= dt_before)\
+        .filter(Transaction.date < dt_after)\
+        .group_by(Destination.account, Destination.direction)
+
+    def get_debet_kredit(seq):
+        result = {}
+        for aid, dir, amount in seq:
+            if aid not in result:
+                result[aid] = [0, 0]
+
+            if dir:
+                result[aid][0] = amount
+            else:
+                result[aid][1] = amount
+
+        return result
 
     result = {}
     for aid in account_id_list:
         result[aid] = {'kredit': 0, 'debet': 0, 'after': 0, 'before': 0}
 
-    for r in rbefore:
-        rr = result[int(r['_id.acc'])]
-        rr['before'] = rr['after'] = (r['debet'] - r['kredit'])/100.0
+    for aid, (d, k) in get_debet_kredit(rbefore).iteritems():
+        rr = result[aid]
+        rr['before'] = rr['after'] = d - k
 
-    for r in rafter:
-        rr = result[int(r['_id.acc'])]
-        k, d = r['kredit']/100.0, r['debet']/100.0
+    for aid, (d, k) in get_debet_kredit(rafter).iteritems():
+        rr = result[aid]
         rr['debet'] = d
         rr['kredit'] = k
         rr['after'] = rr['before'] + d - k
 
     return result
 
-def balance(aid, date_from=None, date_to=None):
+def balance(session, aid, date_from=None, date_to=None):
     '''
     Возвращает баланс счета
 
     @return: Balance
     '''
 
-    if date_from is None and date_to is None:
-        result = Transaction.__collection__.balance.find_one({'_id':aid})
-        if result:
-            result = result['value']
-    else:
-        query = {'_id.acc': aid, '_id.dt':{}}
-        if date_from:
-            query['_id.dt']['$gte'] = date_from
+    q = session.query(Destination.direction, func.sum(Transaction.amount))\
+        .join(Transaction.accounts)\
+        .filter(Destination.account == aid)\
+        .filter(Transaction.canceled == False)
 
-        if date_to:
-            query['_id.dt']['$lt'] = date_to
+    if date_from:
+        q = q.filter(Transaction.date >= date_from)
 
-        result = Transaction.__collection__.balances.group(['_id.acc'], query, *GROUP_FUNC)
+    if date_to:
+        q = q.filter(Transaction.date < date_to)
 
-        if result:
-            result = result[0]
+    result = q.group_by(Destination.direction).all()
 
-    if result:
-        return Balance(result['debet']/100.0, result['kredit']/100.0)
-    else:
-        return Balance(0, 0)
+    kredit = debet = 0
+    for r in result:
+        if r[0]:
+            debet = r[1]
+        else:
+            kredit = r[1]
+
+    return Balance(debet, kredit)
 
 
 def balances(id_list):
@@ -142,77 +168,53 @@ def balances(id_list):
         for r in Transaction.get_db().view('transactions/balance', keys=id_list, group=True))
 
 
-def report(aid, date_from=None, date_to=None):
-    query = {'_id.acc': aid}
+def day_report(session, aid, date_from=None, date_to=None):
+    q = session.query(func.date_trunc('day', Transaction.date), Destination.direction,
+             func.sum(Transaction.amount))\
+        .join(Transaction.accounts)\
+        .filter(Destination.account == aid)\
+        .filter(Transaction.canceled == False)
 
     if date_from:
-        query.setdefault('_id.dt', {})['$gte'] = date_from
+        q = q.filter(Transaction.date >= date_from)
 
     if date_to:
-        query.setdefault('_id.dt', {})['$lt'] = date_to
+        q = q.filter(Transaction.date < date_to)
 
-    result = Transaction.__collection__.balances.group(['_id.acc', '_id.dt'], query,
-        *GROUP_FUNC)
+    result = q.group_by(func.date_trunc('day', Transaction.date), Destination.direction)
 
-    return ((r['_id.dt'], Balance(r['debet']/100.0, r['kredit']/100.0)) for r in result)
+    data = []
+    kredit = debet = 0
+    last_data = None
+    for r in result:
+        if last_data is not None and last_data != r[0]:
+            data.append((last_data, Balance(debet, kredit)))
+            kredit = debet = 0
 
-def transactions(aid, date_from=None, date_to=None, income=False, outcome=False):
-    query = {}
+        last_data = r[0]
+        if r[1]:
+            debet = r[2]
+        else:
+            kredit = r[2]
+
+    data.append((last_data, Balance(debet, kredit)))
+
+    return data
+
+def transactions(session, aid, date_from=None, date_to=None, income=False, outcome=False):
+    q = session.query(Transaction)\
+        .join(Transaction.accounts)\
+        .filter(Destination.account == aid)
 
     if date_from:
-        query.setdefault('date', {})['$gte'] = date_from
+        q = q.filter(Transaction.date >= date_from)
 
     if date_to:
-        query.setdefault('date', {})['$lt'] = date_to
+        q = q.filter(Transaction.date < date_to)
 
     if income and not outcome:
-        query['to_acc'] = aid
+        q = q.filter(Destination.direction == True)
     elif outcome and not income:
-        query['from_acc'] = aid
-    else:
-        q = query['$or'] = []
-        q.append({'from_acc':aid})
-        q.append({'to_acc':aid})
+        q = q.filter(Destination.direction == False)
 
-    return Transaction.find(query)
-
-transactions_balances_map = Code("""function(){
-    var obj = this
-    obj.from_acc.forEach(function(acc) {
-        var dt = new Date(obj.date.getTime())
-        dt.setUTCHours(0)
-        dt.setUTCMinutes(0)
-        dt.setUTCSeconds(0)
-        dt.setUTCMilliseconds(0)
-        emit({acc:acc, dt:dt}, {kredit:obj.amount * revert_mp, debet:0});
-    })
-
-    obj.to_acc.forEach(function(acc) {
-        var dt = new Date(obj.date.getTime())
-        dt.setUTCHours(0)
-        dt.setUTCMinutes(0)
-        dt.setUTCSeconds(0)
-        dt.setUTCMilliseconds(0)
-        emit({acc:acc, dt:dt}, {kredit:0, debet:obj.amount * revert_mp});
-    })
-}""")
-
-transactions_balance_map = Code("""function(){
-    var obj = this
-    obj.from_acc.forEach(function(acc) {
-        emit(acc, {kredit:obj.amount * revert_mp, debet:0});
-    })
-
-    obj.to_acc.forEach(function(acc) {
-        emit(acc, {kredit:0, debet:obj.amount * revert_mp});
-    })
-}""")
-
-transactions_reduce = Code("""function(key, values){
-    var result = {kredit:0, debet:0}
-    values.forEach(function(v) {
-        result.kredit += v.kredit
-        result.debet += v.debet
-    })
-    return result
-}""")
+    return q
