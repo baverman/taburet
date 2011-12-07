@@ -41,7 +41,7 @@ class PackageManager(object):
         for f in self.on_drop_cb:
             f(self.session.get_bind())
 
-    def use(self, *packages):
+    def use(self, *packages, **kwargs):
         for package in iter_packages(packages):
             pname = package.__name__
 
@@ -50,4 +50,4 @@ class PackageManager(object):
             self.processed_uses[pname] = True
 
             if getattr(package, 'init', False):
-                package.init(self)
+                package.init(self, **kwargs)

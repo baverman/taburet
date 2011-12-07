@@ -3,13 +3,15 @@ from datetime import datetime
 
 from taburet.accounts import Account, get_account_by_name, get_toplevel_accounts, create_account, \
     create_transaction, get_all_accounts
-from taburet.transactions import transactions, month_report
+from taburet.transactions import transactions, month_report, TransactionBase
 
 from .helpers import pytest_funcarg__pm
 
+class Transaction(TransactionBase): pass
+
 def pytest_funcarg__session(request):
     pm = pytest_funcarg__pm(request)
-    pm.use('taburet.accounts')
+    pm.use('taburet.accounts', Transaction=Transaction)
 
     pm.drop()
     pm.sync()

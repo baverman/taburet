@@ -1,22 +1,30 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
-from itertools import groupby
 
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean, ForeignKey, func
-from sqlalchemy.orm import relationship, object_session
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
-class Transaction(Base):
-    __tablename__ = 'transactions'
+Transaction = None
+
+class TransactionBase(Base):
+    __abstract__ = True
+
+    @declared_attr
+    def __tablename__(self):
+        return 'transactions'
 
     id = Column(Integer, primary_key=True)
     amount = Column(Numeric(18, 2))
     date = Column(DateTime)
     canceled = Column(Boolean)
     cancel_desc = Column(String(500))
-    accounts = relationship('Destination', cascade="all, delete, delete-orphan")
+
+    @declared_attr
+    def accounts(self):
+        return relationship('Destination', cascade="all, delete, delete-orphan")
 
     def cancel(self, desc=None):
         self.canceled = True
